@@ -1,0 +1,8 @@
+# Ignore files that are not required for the Docker build
+target/
+*.log
+*.md
+.git
+.gitignore
+.idea/
+.vscode/

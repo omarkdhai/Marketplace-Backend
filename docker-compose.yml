@@ -1,0 +1,60 @@
+version: "3.7"
+
+services:
+  # Traefik service
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    command:
+      - "--api.insecure=true"           # Enable the dashboard (insecure)
+      - "--api.dashboard=true"          # Enable the dashboard view
+      - "--providers.docker=true"       # Enable Docker provider
+      - "--entrypoints.web.address=:80" # Expose web service on port 80
+    ports:
+      - "80:80"   # Expose port 80 (HTTP)
+      - "8084:8084" # Expose port 8084 for the dashboard
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`localhost`) && PathPrefix(`/traefik`)"
+      - "traefik.http.services.traefik.loadbalancer.server.port=8084" # Dashboard
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock" # Enable Traefik to listen to Docker events
+
+  # Quarkus Auth service (replace with your actual service details)
+  auth-service:
+    image: auth-service-image   # Replace with your actual Quarkus service image
+    container_name: auth-service
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth.rule=Host(`localhost`) && PathPrefix(`/auth`)"
+      - "traefik.http.services.auth-service.loadbalancer.server.port=8081" # Your Quarkus service port
+
+  # Quarkus Notification service (replace with your actual service details)
+  notif-service:
+    image: notif-service-image   # Replace with your actual Quarkus service image
+    container_name: notif-service
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.notif.rule=Host(`localhost`) && PathPrefix(`/notif`)"
+      - "traefik.http.services.notif-service.loadbalancer.server.port=8083" # Your Quarkus service port
+
+  # Quarkus Product service (replace with your actual service details)
+  product-service:
+    image: product-service-image   # Replace with your actual Quarkus service image
+    container_name: product-service
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.product.rule=Host(`localhost`) && PathPrefix(`/product`)"
+      - "traefik.http.services.product-service.loadbalancer.server.port=8082" # Your Quarkus service port
+
+networks:
+  traefik:
+    external: false
