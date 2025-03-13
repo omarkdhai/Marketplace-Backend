@@ -4,6 +4,7 @@ package com.marketplace.product.Controller;
 import com.marketplace.product.DTO.ProductForm;
 import com.marketplace.product.Entity.Product;
 import com.marketplace.product.Enum.ProductStatus;
+import com.marketplace.product.Repository.ProductRepository;
 import com.marketplace.product.Service.ProductService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -26,6 +27,10 @@ public class ProductController {
 
     @Inject
     ProductService productService;
+
+    @Inject
+    ProductRepository productRepository;
+
     private static final Logger LOGGER = Logger.getLogger(ProductController.class);
     private static final String UPLOAD_DIR = "C:/Users/21628/Documents/PFE Documents/Marketplace Project/uploaded-images";
 
@@ -74,6 +79,26 @@ public class ProductController {
                     .entity("Error while uploading the product.")
                     .build();
         }
+    }
+
+
+    @PUT
+    @Path("/favorite/{productId}")
+    @Produces("application/json")
+    public Response toggleFavorite(@PathParam("productId") String productId) {
+        try {
+            Product updatedProduct = productService.toggleFavorite(productId);
+            return Response.ok(updatedProduct).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+        }
+    }
+
+    @GET
+    @Path("/favorites")
+    @Produces("application/json")
+    public List<Product> getFavoriteProducts() {
+        return productRepository.list("favorite", true);
     }
 
     @PUT

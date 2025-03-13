@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.bson.types.ObjectId;
 
+import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
 
@@ -31,6 +32,10 @@ public class Product extends PanacheMongoEntity {
     @NotNull
     private ProductStatus status;
 
+    private Instant creationDate;
+
+    private boolean favorite = false;
+
     private List<CategoryInfo> categories;
 
     private byte[] photo;
@@ -42,5 +47,9 @@ public class Product extends PanacheMongoEntity {
         this.description = description;
         this.price = price;
         this.status = status;
+    }
+
+    public void toggleFavorite() {
+        this.favorite = !this.favorite;
     }
 }

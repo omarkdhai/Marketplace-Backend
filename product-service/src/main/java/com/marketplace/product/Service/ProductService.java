@@ -22,6 +22,7 @@ public class ProductService {
     ProductRepository productRepository;
 
 
+    //Add Product
     public Product addProduct(Product product) {
         try {
             if (product != null) {
@@ -35,7 +36,16 @@ public class ProductService {
         }
     }
 
-
+    //Toggle Favorite Product
+    public Product toggleFavorite(String productId) {
+        Product product = productRepository.findById(new ObjectId(productId));
+        if (product == null) {
+            throw new IllegalArgumentException("Product not found");
+        }
+        product.toggleFavorite();
+        productRepository.update(product);
+        return product;
+    }
 
 
     // Get products

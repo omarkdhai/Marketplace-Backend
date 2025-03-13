@@ -10,6 +10,7 @@ import org.jboss.resteasy.annotations.providers.multipart.PartType;
 
 import java.io.File;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.List;
 
 @Data
@@ -34,6 +35,8 @@ public class ProductForm {
     @FormParam("categories")
     @PartType("text/plain")
     private String categories;
+
+    private Instant creationDate;
 
     @FormParam("medias")
     @PartType("text/plain")
