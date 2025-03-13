@@ -51,57 +51,28 @@ public class ProductController {
         try {
             LOGGER.info("Received request to add product.");
 
-            // Log all the form data to check the inputs
             LOGGER.info("Product Details: " + productForm.toString());
 
             // Convert the status string to ProductStatus enum
             ProductStatus status = ProductStatus.valueOf(productForm.getStatus().toUpperCase());
 
-            // Check if photo is being received correctly
-            if (productForm.getPhoto() != null) {
-                // Prepare the file path for saving the photo
-                String fileName = productForm.getName() + ".png";
-                String filePath = UPLOAD_DIR + "/" + fileName;
+            // Create the product object with the correct status enum
+            Product product = new Product(productForm.getName(), productForm.getDescription(), productForm.getPrice(), status);
 
+            // Set the photo as a byte array
+            product.setPhoto(productForm.getPhoto());
 
-                LOGGER.info("Saving file to: " + filePath);
+            // Save the product to MongoDB
+            Product savedProduct = productService.addProduct(product);
 
-                // Save the photo file
-                saveFile(productForm.getPhoto(), filePath);
-
-                LOGGER.info("Product photo uploaded successfully.");
-
-                // Create the product object with the correct status enum
-                Product product = new Product(productForm.getName(), productForm.getDescription(), productForm.getPrice(), status);
-                product.setPhoto(filePath); // Save the file path in the photo field
-                Product savedProduct = productService.addProduct(product); // Assuming productService.addProduct saves to MongoDB
-
-                return Response.status(Response.Status.CREATED)
-                        .entity(savedProduct)
-                        .build();
-            }
-            return null;/*else {
-                LOGGER.warn("No photo received for 'photo' field.");
-                return Response.status(Response.Status.BAD_REQUEST)
-                        .entity("No photo received for 'photo' field.")
-                        .build();
-            }*/
+            return Response.status(Response.Status.CREATED)
+                    .entity(savedProduct)
+                    .build();
         } catch (Exception e) {
             LOGGER.error("Error while processing the request", e);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("Error while uploading the product photo.")
+                    .entity("Error while uploading the product.")
                     .build();
-        }
-    }
-
-    private void saveFile(InputStream uploadedInputStream, String filePath) throws IOException {
-        try {
-            LOGGER.info("Attempting to save file: " + filePath);
-            Files.copy(uploadedInputStream, Paths.get(filePath), StandardCopyOption.REPLACE_EXISTING);
-            LOGGER.info("File saved successfully at: " + filePath);
-        } catch (IOException e) {
-            LOGGER.error("Error saving the file", e);
-            throw new IOException("Error saving file", e);
         }
     }
 

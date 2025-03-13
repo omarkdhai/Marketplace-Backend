@@ -45,6 +45,6 @@ public class ProductForm {
 
     @FormParam("photo")
     @PartType("application/octet-stream")
-    private InputStream photo;
+    private byte[] photo;
 
 }

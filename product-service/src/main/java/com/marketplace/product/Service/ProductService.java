@@ -21,7 +21,7 @@ public class ProductService {
     @Inject
     ProductRepository productRepository;
 
-    @Transactional
+
     public Product addProduct(Product product) {
         try {
             if (product != null) {
