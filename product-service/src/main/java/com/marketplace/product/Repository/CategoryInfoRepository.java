@@ -7,4 +7,5 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 @ApplicationScoped
 public class CategoryInfoRepository implements PanacheMongoRepository<CategoryInfo> {
+
 }

@@ -12,13 +12,11 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.annotations.providers.multipart.MultipartForm;
+import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,7 +30,7 @@ public class ProductController {
     ProductRepository productRepository;
 
     private static final Logger LOGGER = Logger.getLogger(ProductController.class);
-    private static final String UPLOAD_DIR = "C:/Users/21628/Documents/PFE Documents/Marketplace Project/uploaded-images";
+    //private static final String UPLOAD_DIR = "C:/Users/21628/Documents/PFE Documents/Marketplace Project/uploaded-images";
 
     @GET
     @Produces("application/json")
@@ -64,8 +62,21 @@ public class ProductController {
             // Create the product object with the correct status enum
             Product product = new Product(productForm.getName(), productForm.getDescription(), productForm.getPrice(), status);
 
-            // Set the photo as a byte array
-            product.setPhoto(productForm.getPhoto());
+            // Convert the photo InputPart to byte[] and set the photo
+            if (productForm.getPhoto() != null) {
+                byte[] photoBytes = convertInputPartToByteArray(productForm.getPhoto());
+                product.setPhoto(photoBytes);
+            }
+
+            // Convert the List<InputPart> medias to List<byte[]>
+            if (productForm.getMedias() != null && !productForm.getMedias().isEmpty()) {
+                List<byte[]> mediaBytes = new ArrayList<>();
+                for (InputPart media : productForm.getMedias()) {
+                    byte[] mediaBytesArray = convertInputPartToByteArray(media);
+                    mediaBytes.add(mediaBytesArray);
+                }
+                product.setMedias(mediaBytes); // Set the media files as byte arrays
+            }
 
             // Save the product to MongoDB
             Product savedProduct = productService.addProduct(product);
@@ -79,6 +90,12 @@ public class ProductController {
                     .entity("Error while uploading the product.")
                     .build();
         }
+    }
+
+    // Helper method to convert InputPart to byte[]
+    public byte[] convertInputPartToByteArray(InputPart inputPart) throws IOException {
+        InputStream inputStream = inputPart.getBody(InputStream.class, null);
+        return inputStream.readAllBytes();
     }
 
 

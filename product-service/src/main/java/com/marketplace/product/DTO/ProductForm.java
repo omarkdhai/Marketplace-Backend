@@ -1,14 +1,13 @@
 package com.marketplace.product.DTO;
 
 
-import com.marketplace.product.Entity.CategoryInfo;
-import com.marketplace.product.Entity.Product;
+
 import jakarta.ws.rs.FormParam;
 import jakarta.ws.rs.core.MediaType;
 import lombok.Data;
 import org.jboss.resteasy.annotations.providers.multipart.PartType;
+import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 
-import java.io.File;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.List;
@@ -39,8 +38,8 @@ public class ProductForm {
     private Instant creationDate;
 
     @FormParam("medias")
-    @PartType("text/plain")
-    private String medias;
+    @PartType("application/octet-stream")
+    private List<InputPart> medias;
 
     @FormParam("keywords")
     @PartType("text/plain")
@@ -48,6 +47,6 @@ public class ProductForm {
 
     @FormParam("photo")
     @PartType("application/octet-stream")
-    private byte[] photo;
+    private InputPart photo;
 
 }

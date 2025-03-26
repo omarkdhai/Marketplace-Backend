@@ -80,7 +80,6 @@ public class ProductService {
     }
 
     // Delete Product
-
     public boolean deleteProduct(String id) {
         return Product.deleteById(new ObjectId(id));
     }

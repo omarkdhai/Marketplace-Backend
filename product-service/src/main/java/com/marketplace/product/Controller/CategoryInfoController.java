@@ -1,82 +1,132 @@
 package com.marketplace.product.Controller;
 
+import com.marketplace.product.DTO.CategoryInfoForm;
 import com.marketplace.product.Entity.CategoryInfo;
 import com.marketplace.product.Service.CategoryInfoService;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.jboss.logging.Logger;
+import org.jboss.resteasy.annotations.providers.multipart.MultipartForm;
+import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
 
+
 @Path("/categories")
-@Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
 public class CategoryInfoController {
 
     @Inject
     CategoryInfoService categoryInfoService;
 
-    // Create or Update CategoryInfo
-    @POST
-    public Response createOrUpdateCategoryInfo(CategoryInfo categoryInfo) {
-        try {
-            CategoryInfo savedCategory = categoryInfoService.createOrUpdateCategoryInfo(categoryInfo);
-            return Response.status(Response.Status.CREATED).entity(savedCategory).build();
-        } catch (Exception e) {
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("Error creating or updating CategoryInfo: " + e.getMessage()).build();
-        }
+    private static final Logger LOGGER = Logger.getLogger(CategoryInfoController.class);
+
+    @GET
+    @Produces("application/json")
+    public List<CategoryInfo> getAllCategories() {
+        return categoryInfoService.getAllCategoryInfos();
     }
 
-    // Get CategoryInfo by ID
     @GET
     @Path("/{id}")
-    public Response getCategoryInfoById(@PathParam("id") String id) {
+    @Produces("application/json")
+    public Response getCategoryById(@PathParam("id") String id) {
+        Optional<CategoryInfo> category = categoryInfoService.getCategoryInfoById(id);
+        return category.map(Response::ok)
+                .orElseGet(() -> Response.status(Response.Status.NOT_FOUND))
+                .build();
+    }
+
+    @POST
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public Response addCategory(@MultipartForm CategoryInfoForm categoryForm) {
         try {
-            Optional<CategoryInfo> categoryInfo = categoryInfoService.getCategoryInfoById(id);
-            if (categoryInfo.isPresent()) {
-                return Response.ok(categoryInfo.get()).build();
-            } else {
-                return Response.status(Response.Status.NOT_FOUND)
-                        .entity("CategoryInfo not found for ID: " + id).build();
+            LOGGER.info("Received request to add category.");
+
+            LOGGER.info("Category Details: " + categoryForm.toString());
+
+            // Create the category object
+            CategoryInfo category = new CategoryInfo();
+            category.setName(categoryForm.getName());
+            category.setDescription(categoryForm.getDescription());
+
+            // Convert the miniPhoto InputPart to byte[]
+            if (categoryForm.getMiniPhoto() != null) {
+                byte[] miniPhotoBytes = convertInputPartToByteArray(categoryForm.getMiniPhoto());
+                category.setMiniPhoto(miniPhotoBytes);
             }
+
+            // Convert the maxiPhoto InputPart to byte[]
+            if (categoryForm.getMaxiPhoto() != null) {
+                byte[] maxiPhotoBytes = convertInputPartToByteArray(categoryForm.getMaxiPhoto());
+                category.setMaxiPhoto(maxiPhotoBytes);
+            }
+
+            // Save the category to MongoDB
+            CategoryInfo savedCategory = categoryInfoService.addCategoryInfo(category);
+
+            return Response.status(Response.Status.CREATED)
+                    .entity(savedCategory)
+                    .build();
         } catch (Exception e) {
+            LOGGER.error("Error while processing the request", e);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("Error fetching CategoryInfo: " + e.getMessage()).build();
+                    .entity("Error while uploading the category.")
+                    .build();
         }
     }
 
-    // Get all CategoryInfo
-    @GET
-    public Response getAllCategoryInfo() {
+    // Helper method to convert InputPart to byte[]
+    public byte[] convertInputPartToByteArray(InputPart inputPart) throws IOException {
+        InputStream inputStream = inputPart.getBody(InputStream.class, null);
+        return inputStream.readAllBytes();
+    }
+
+    @PUT
+    @Path("/{id}")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public Response updateCategory(@PathParam("id") String id, @MultipartForm CategoryInfoForm categoryForm) {
         try {
-            List<CategoryInfo> categoryInfoList = categoryInfoService.getAllCategoryInfo();
-            return Response.ok(categoryInfoList).build();  // Properly return the list inside Response
+            LOGGER.info("Received request to update category with ID: " + id);
+
+            Optional<CategoryInfo> existingCategory = categoryInfoService.getCategoryInfoById(id);
+            if (existingCategory.isEmpty()) {
+                return Response.status(Response.Status.NOT_FOUND).entity("Category not found").build();
+            }
+
+            CategoryInfo category = existingCategory.get();
+            category.setName(categoryForm.getName());
+            category.setDescription(categoryForm.getDescription());
+
+            if (categoryForm.getMiniPhoto() != null) {
+                byte[] miniPhotoBytes = convertInputPartToByteArray(categoryForm.getMiniPhoto());
+                category.setMiniPhoto(miniPhotoBytes);
+            }
+
+            if (categoryForm.getMaxiPhoto() != null) {
+                byte[] maxiPhotoBytes = convertInputPartToByteArray(categoryForm.getMaxiPhoto());
+                category.setMaxiPhoto(maxiPhotoBytes);
+            }
+
+            CategoryInfo updatedCategory = categoryInfoService.updateCategoryInfo(id, category);
+            return Response.ok(updatedCategory).build();
         } catch (Exception e) {
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("Error fetching all CategoryInfo: " + e.getMessage()).build();
+            LOGGER.error("Error updating category", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Error updating category").build();
         }
     }
 
-    // Delete CategoryInfo by ID
+
     @DELETE
     @Path("/{id}")
-    public Response deleteCategoryInfo(@PathParam("id") String id) {
-        try {
-            boolean deleted = categoryInfoService.deleteCategoryInfo(id);
-            if (deleted) {
-                return Response.status(Response.Status.NO_CONTENT).build();
-            } else {
-                return Response.status(Response.Status.NOT_FOUND)
-                        .entity("CategoryInfo not found for ID: " + id).build();
-            }
-        } catch (Exception e) {
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("Error deleting CategoryInfo: " + e.getMessage()).build();
-        }
+    public Response deleteCategory(@PathParam("id") String id) {
+        boolean deleted = categoryInfoService.deleteCategoryInfo(id);
+        return deleted ? Response.ok().build() : Response.status(Response.Status.NOT_FOUND).build();
     }
 }
+
 

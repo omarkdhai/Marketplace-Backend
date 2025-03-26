@@ -39,7 +39,8 @@ public class Product extends PanacheMongoEntity {
     private List<CategoryInfo> categories;
 
     private byte[] photo;
-    private List<String> medias;
+    private List<byte[]> medias;
+
     private List<String> keywords;
 
     public Product(String name, String description, double price, ProductStatus status) {

@@ -11,43 +11,51 @@ import java.util.Optional;
 
 @ApplicationScoped
 public class CategoryInfoService {
-
-    // Inject the custom CategoryInfoRepository
     @Inject
     CategoryInfoRepository categoryInfoRepository;
 
-    // Create or Update CategoryInfo
-    public CategoryInfo createOrUpdateCategoryInfo(CategoryInfo categoryInfo) {
-        if (categoryInfo.id == null) {
-            categoryInfo.persist();
-        } else {
-            CategoryInfo existingCategory = categoryInfoRepository.findById(categoryInfo.id);
-            if (existingCategory != null) {
-                existingCategory.name = categoryInfo.name;
-                existingCategory.description = categoryInfo.description;
-                categoryInfoRepository.persist(existingCategory); // Save updated entity
+    // Add CategoryInfo
+    public CategoryInfo addCategoryInfo(CategoryInfo categoryInfo) {
+        try {
+            if (categoryInfo != null) {
+                categoryInfo.persist();
+                return categoryInfo;
+            } else {
+                throw new IllegalArgumentException("CategoryInfo cannot be null");
             }
+        } catch (Exception e) {
+            throw new RuntimeException("Error while saving the category", e);
         }
-        return categoryInfo;
     }
 
-    // Find CategoryInfo by ID
-    public Optional<CategoryInfo> getCategoryInfoById(String id) {
-        return Optional.ofNullable(categoryInfoRepository.findById(new ObjectId(id)));
-    }
-
-    // Get all CategoryInfo
-    public List<CategoryInfo> getAllCategoryInfo() {
+    // Get all CategoryInfos
+    public List<CategoryInfo> getAllCategoryInfos() {
         return categoryInfoRepository.listAll();
     }
 
-    // Delete CategoryInfo by ID
-    public boolean deleteCategoryInfo(String id) {
-        CategoryInfo categoryInfo = categoryInfoRepository.findById(new ObjectId(id));
-        if (categoryInfo != null) {
-            categoryInfoRepository.delete(categoryInfo);
-            return true;
+    // Get CategoryInfo by ID
+    public Optional<CategoryInfo> getCategoryInfoById(String id) {
+        return CategoryInfo.findByIdOptional(new ObjectId(id));
+    }
+
+    // Update CategoryInfo
+    public CategoryInfo updateCategoryInfo(String id, CategoryInfo categoryInfo) {
+        CategoryInfo existingCategory = CategoryInfo.findById(new ObjectId(id));
+        if (existingCategory != null) {
+            existingCategory.setName(categoryInfo.getName());
+            existingCategory.setDescription(categoryInfo.getDescription());
+            existingCategory.setMiniPhoto(categoryInfo.getMiniPhoto());
+            existingCategory.setMaxiPhoto(categoryInfo.getMaxiPhoto());
+
+            existingCategory.persist();
+            return existingCategory;
+        } else {
+            return null;
         }
-        return false;
+    }
+
+    // Delete CategoryInfo
+    public boolean deleteCategoryInfo(String id) {
+        return CategoryInfo.deleteById(new ObjectId(id));
     }
 }
