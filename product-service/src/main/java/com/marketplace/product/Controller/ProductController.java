@@ -20,7 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-@Path("/products")
+@Path("/api/v1/products")
 public class ProductController {
 
     @Inject

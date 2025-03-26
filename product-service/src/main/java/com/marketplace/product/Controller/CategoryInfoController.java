@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Optional;
 
 
-@Path("/categories")
+@Path("/api/v1/categories")
 public class CategoryInfoController {
 
     @Inject
