@@ -38,16 +38,26 @@ public class Product extends PanacheMongoEntity {
 
     private List<CategoryInfo> categories;
 
-    private byte[] photo;
+    private String photo;
     private List<byte[]> medias;
 
     private List<String> keywords;
 
-    public Product(String name, String description, double price, ProductStatus status) {
+    /*public Product(String name, String description, double price, ProductStatus status) {
         this.name = name;
         this.description = description;
         this.price = price;
         this.status = status;
+    }*/
+
+    public Product(String name, String description, double price, ProductStatus status, Instant creationDate, List<CategoryInfo> categories, List<String> keywords) {
+        this.name = name;
+        this.description = description;
+        this.price = price;
+        this.status = status;
+        this.creationDate = creationDate;
+        this.categories = categories;
+        this.keywords = keywords;
     }
 
     public void toggleFavorite() {

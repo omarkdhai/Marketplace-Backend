@@ -30,6 +30,11 @@ public class NotificationService {
     @Inject
     ObjectMapper objectMapper;
 
+
+    public List<Notification> getAllNotifications() {
+        return Notification.listAll();
+    }
+
     public void sendEmail(String to, String subject, String content) {
         mailer.send(Mail.withText(to, subject, content));
 
@@ -41,6 +46,10 @@ public class NotificationService {
         notification.setCreatedAt(LocalDateTime.now());
 
         repository.persist(notification);
+    }
+
+    public List<Notification> getAllEmails() {
+        return repository.find("type", NotifType.EMAIL).list();
     }
 
     public void sendInAppNotification(String userId, String title, String message) {

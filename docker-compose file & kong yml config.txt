@@ -14,10 +14,47 @@ services:
       - KONG_DECLARATIVE_CONFIG=/usr/local/kong/declarative/kong.yml
       - KONG_ADMIN_LISTEN=0.0.0.0:8001
 
+  product-service:
+    image: product-service-container
+    container_name: product-service
+    ports:
+      - "8082:8082"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/product-service
+    depends_on:
+      - mongo
+    networks:
+      - kong-net
+
+  notif-service:
+    image: notif-service-container
+    container_name: notif-service
+    ports:
+      - "8083:8083"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/notif-service
+    depends_on:
+      - mongo
+    networks:
+      - kong-net
+
+  auth-service:
+    image: auth-service-container
+    container_name: auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/auth-service
+      - quarkus.oidc.auth-server-url=http://keycloak:8180/realms/pfe-realm
+    depends_on:
+      - mongo
+      - keycloak
+    networks:
+      - kong-net
+
   keycloak:
     image: quay.io/keycloak/keycloak:latest
     container_name: keycloak
-    command: start-dev --import-realm
     environment:
       - KC_USER=admin
       - KC_PASSWORD=admin
@@ -30,6 +67,7 @@ services:
       - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
     volumes:
       - ./realm-export.json:/opt/keycloak/data/import/realm-export.json
+    command: start-dev --import-realm
     ports:
       - "8180:8080"
     depends_on:
@@ -66,3 +104,33 @@ networks:
 volumes:
   mongo_data:
   postgres_data:
+
+
+
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: product-service
+    url: http://product-service:8082
+    routes:
+      - name: product-route
+        paths:
+          - /api/v1/products
+        strip_path: false
+
+  - name: notif-service
+    url: http://notif-service:8083
+    routes:
+      - name: notif-route
+        paths:
+          - /api/v1/notifs
+        strip_path: false
+
+  - name: auth-service
+    url: http://auth-service:8081
+    routes:
+      - name: auth-route
+        paths:
+          - /api/admin
+        strip_path: false

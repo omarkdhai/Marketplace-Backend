@@ -1,7 +1,10 @@
 package com.marketplace.product.Controller;
 
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.marketplace.product.DTO.ProductForm;
+import com.marketplace.product.Entity.CategoryInfo;
 import com.marketplace.product.Entity.Product;
 import com.marketplace.product.Enum.ProductStatus;
 import com.marketplace.product.Repository.ProductRepository;
@@ -16,9 +19,8 @@ import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Path("/api/v1/products")
 public class ProductController {
@@ -42,10 +44,7 @@ public class ProductController {
     @Path("/{id}")
     @Produces("application/json")
     public Response getProductById(@PathParam("id") String id) {
-        Optional<Product> product = productService.getProductById(id);
-        return product.map(Response::ok)
-                .orElseGet(() -> Response.status(Response.Status.NOT_FOUND))
-                .build();
+        return productService.getProductById(id);
     }
 
     @POST
@@ -59,13 +58,44 @@ public class ProductController {
             // Convert the status string to ProductStatus enum
             ProductStatus status = ProductStatus.valueOf(productForm.getStatus().toUpperCase());
 
+            // Parse keywords
+            List<String> keywords = new ArrayList<>();
+            if (productForm.getKeywords() != null && !productForm.getKeywords().isEmpty()) {
+                keywords = Arrays.stream(productForm.getKeywords().split(","))
+                        .map(String::trim)
+                        .collect(Collectors.toList());
+            }
+
+            // Parse categories
+            List<CategoryInfo> categories = new ArrayList<>();
+            if (productForm.getCategories() != null && !productForm.getCategories().isEmpty()) {
+                List<String> categoryNames = Arrays.stream(productForm.getCategories().split(","))
+                        .map(String::trim)
+                        .collect(Collectors.toList());
+
+                for (String name : categoryNames) {
+                    CategoryInfo category = new CategoryInfo();
+                    category.name = name;
+                    category.description = "Default description";
+                    categories.add(category);
+                }
+            }
+
             // Create the product object with the correct status enum
-            Product product = new Product(productForm.getName(), productForm.getDescription(), productForm.getPrice(), status);
+            Product product = new Product(
+                    productForm.getName(),
+                    productForm.getDescription(),
+                    productForm.getPrice(),
+                    ProductStatus.valueOf(productForm.getStatus().toUpperCase()),
+                    productForm.getCreationDate(),
+                    categories,
+                    keywords
+            );
 
             // Convert the photo InputPart to byte[] and set the photo
             if (productForm.getPhoto() != null) {
                 byte[] photoBytes = convertInputPartToByteArray(productForm.getPhoto());
-                product.setPhoto(photoBytes);
+                product.setPhoto(Base64.getEncoder().encodeToString(photoBytes));
             }
 
             // Convert the List<InputPart> medias to List<byte[]>
@@ -75,7 +105,7 @@ public class ProductController {
                     byte[] mediaBytesArray = convertInputPartToByteArray(media);
                     mediaBytes.add(mediaBytesArray);
                 }
-                product.setMedias(mediaBytes); // Set the media files as byte arrays
+                product.setMedias(mediaBytes);
             }
 
             // Save the product to MongoDB
@@ -158,5 +188,26 @@ public class ProductController {
         List<Product> products = productService.searchByName(name);
         return Response.ok(products).build();
     }
+
+    @GET
+    @Path("/byCategory/{name}")
+    public List<Product> getByCategoryName(@PathParam("name") String name) {
+        return productService.getProductsByCategoryName(name);
+    }
+
+    @GET
+    @Path("/sort/asc")
+    @Produces("application/json")
+    public Response sortByPriceAsc() {
+        return Response.ok(productService.getProductsSortedByPriceAsc()).build();
+    }
+
+    @GET
+    @Path("/sort/desc")
+    @Produces("application/json")
+    public Response sortByPriceDesc() {
+        return Response.ok(productService.getProductsSortedByPriceDesc()).build();
+    }
+
 
 }

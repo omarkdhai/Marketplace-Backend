@@ -2,6 +2,8 @@ package com.marketplace.product.Controller;
 
 import com.marketplace.product.DTO.CategoryInfoForm;
 import com.marketplace.product.Entity.CategoryInfo;
+import com.marketplace.product.Entity.Product;
+import com.marketplace.product.Enum.ProductStatus;
 import com.marketplace.product.Service.CategoryInfoService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -13,6 +15,7 @@ import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 
@@ -49,21 +52,21 @@ public class CategoryInfoController {
 
             LOGGER.info("Category Details: " + categoryForm.toString());
 
-            // Create the category object
+            // Create the CategoryInfo object
             CategoryInfo category = new CategoryInfo();
-            category.setName(categoryForm.getName());
-            category.setDescription(categoryForm.getDescription());
+            category.name = categoryForm.getName();
+            category.description = categoryForm.getDescription();
 
-            // Convert the miniPhoto InputPart to byte[]
+            // Convert miniPhoto InputPart to Base64 string
             if (categoryForm.getMiniPhoto() != null) {
                 byte[] miniPhotoBytes = convertInputPartToByteArray(categoryForm.getMiniPhoto());
-                category.setMiniPhoto(miniPhotoBytes);
+                category.setMiniPhoto(Base64.getEncoder().encodeToString(miniPhotoBytes));
             }
 
-            // Convert the maxiPhoto InputPart to byte[]
+            // Convert maxiPhoto InputPart to Base64 string
             if (categoryForm.getMaxiPhoto() != null) {
                 byte[] maxiPhotoBytes = convertInputPartToByteArray(categoryForm.getMaxiPhoto());
-                category.setMaxiPhoto(maxiPhotoBytes);
+                category.setMaxiPhoto(Base64.getEncoder().encodeToString(maxiPhotoBytes));
             }
 
             // Save the category to MongoDB
@@ -72,6 +75,7 @@ public class CategoryInfoController {
             return Response.status(Response.Status.CREATED)
                     .entity(savedCategory)
                     .build();
+
         } catch (Exception e) {
             LOGGER.error("Error while processing the request", e);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
@@ -104,12 +108,12 @@ public class CategoryInfoController {
 
             if (categoryForm.getMiniPhoto() != null) {
                 byte[] miniPhotoBytes = convertInputPartToByteArray(categoryForm.getMiniPhoto());
-                category.setMiniPhoto(miniPhotoBytes);
+                category.setMiniPhoto(Base64.getEncoder().encodeToString(miniPhotoBytes));
             }
 
             if (categoryForm.getMaxiPhoto() != null) {
                 byte[] maxiPhotoBytes = convertInputPartToByteArray(categoryForm.getMaxiPhoto());
-                category.setMaxiPhoto(maxiPhotoBytes);
+                category.setMaxiPhoto(Base64.getEncoder().encodeToString(maxiPhotoBytes));
             }
 
             CategoryInfo updatedCategory = categoryInfoService.updateCategoryInfo(id, category);

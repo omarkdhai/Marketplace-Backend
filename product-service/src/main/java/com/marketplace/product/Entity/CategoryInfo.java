@@ -22,6 +22,6 @@ public class CategoryInfo extends PanacheMongoEntity {
     @NotNull
     public String description;
 
-    private byte[] miniPhoto;
-    private byte[] maxiPhoto;
+    private String miniPhoto;
+    private String maxiPhoto;
 }

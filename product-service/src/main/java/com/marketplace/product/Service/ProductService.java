@@ -4,14 +4,8 @@ import com.marketplace.product.Entity.Product;
 import com.marketplace.product.Repository.ProductRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
+import jakarta.ws.rs.core.Response;
 import org.bson.types.ObjectId;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 
 import java.util.List;
 import java.util.Optional;
@@ -54,8 +48,11 @@ public class ProductService {
     }
 
     // Get Product by ID
-    public Optional<Product> getProductById(String id) {
-        return Product.findByIdOptional(new ObjectId(id));
+    public Response getProductById(String id) {
+        Optional<Product> product = Product.findByIdOptional(new ObjectId(id));
+        return product.map(Response::ok)
+                .orElseGet(() -> Response.status(Response.Status.NOT_FOUND))
+                .build();
     }
 
     // Update Product
@@ -86,7 +83,7 @@ public class ProductService {
 
     // Get Product by Keywords
     public List<Product> searchByKeyword(String keyword) {
-        return Product.find("keywords like ?1", "%" + keyword + "%").list();
+        return Product.find("{ keywords: { $regex: ?1, $options: 'i' } }", keyword).list();
     }
 
     // Get product by Name
@@ -94,9 +91,18 @@ public class ProductService {
         return Product.find("name", name).list();
     }
 
-    // Filter Products by Category
-    public List<Product> findByCategory(String categoryName) {
-        return Product.list("categories.name", categoryName);
+    // Get product by Category Name
+    public List<Product> getProductsByCategoryName(String categoryName) {
+        return Product.find("categories.name", categoryName).list();
+    }
+
+    // Filter By Prices Asc Or Desc
+    public List<Product> getProductsSortedByPriceAsc() {
+        return Product.find("ORDER BY price ASC").list();
+    }
+
+    public List<Product> getProductsSortedByPriceDesc() {
+        return Product.find("ORDER BY price DESC").list();
     }
 
 }
