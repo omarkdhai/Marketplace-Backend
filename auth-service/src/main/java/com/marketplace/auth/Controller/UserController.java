@@ -34,4 +34,11 @@ public class UserController {
     public List<UserRepresentation> getUsers() {
         return keycloakService.getAllUsers();
     }
+
+    @PUT
+    @Path("/update/{id}")
+    public Response updateUserAttributes(@PathParam("id") String userId, Map<String, String> newAttributes) {
+        keycloakService.updateUserAttributes(userId, newAttributes);
+        return Response.ok().entity(Map.of("message", "User attributes updated")).build();
+    }
 }
