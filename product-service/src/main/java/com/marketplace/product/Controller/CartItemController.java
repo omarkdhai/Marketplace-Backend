@@ -11,7 +11,7 @@ import org.bson.types.ObjectId;
 
 import java.util.List;
 
-@Path("/cart")
+@Path("/api/v1/cart")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class CartItemController {

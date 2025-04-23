@@ -8,6 +8,9 @@ services:
       - name: product-route
         paths:
           - /api/v1/products
+          - /api/v1/cart
+          - /api/v1/categories
+          - /api/v1/orders
         strip_path: false
 
   - name: notif-service
@@ -24,4 +27,12 @@ services:
       - name: auth-route
         paths:
           - /api/admin
+        strip_path: false
+
+  - name: support-service
+    url: http://host.docker.internal:8084
+    routes:
+      - name: support-route
+        paths:
+          - /api/v1/contact
         strip_path: false
