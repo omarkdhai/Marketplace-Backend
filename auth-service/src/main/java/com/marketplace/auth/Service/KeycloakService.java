@@ -1,11 +1,14 @@
 package com.marketplace.auth.Service;
 
-import com.marketplace.auth.Controller.UserController;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
-import jakarta.ws.rs.POST;
 import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.Form;
+import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.keycloak.OAuth2Constants;
@@ -13,10 +16,10 @@ import org.keycloak.admin.client.CreatedResponseUtil;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
 import org.keycloak.admin.client.resource.UserResource;
+import org.keycloak.representations.AccessTokenResponse;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,37 +27,57 @@ import java.util.Map;
 @ApplicationScoped
 public class KeycloakService {
 
+    private Client client;
     private Keycloak keycloak;
-
-
 
     @ConfigProperty(name = "keycloak.serverURL")
     private String serverUrl;
+
     @ConfigProperty(name = "keycloak.realm")
     private String realm;
+
     @ConfigProperty(name = "keycloak.clientId")
     private String clientId;
+
     @ConfigProperty(name = "keycloak.clientSecret")
-    String clientSecret;
+    private String clientSecret;
 
     @PostConstruct
     void init() {
+        client = ClientBuilder.newClient();
         keycloak = KeycloakBuilder.builder()
                 .serverUrl(serverUrl)
                 .realm(realm)
                 .grantType(OAuth2Constants.CLIENT_CREDENTIALS)
                 .clientId(clientId)
                 .clientSecret(clientSecret)
+                .resteasyClient(client)
                 .build();
     }
 
+    @PreDestroy
+    void cleanup() {
+        if (client != null) {
+            client.close();
+        }
+        if (keycloak != null) {
+            keycloak.close();
+        }
+    }
+
     public String createUser(String firstName, String lastName, String email, String password, String birthdate) {
+        List<UserRepresentation> existingUsers = keycloak.realm(realm).users().search(email);
+        if (!existingUsers.isEmpty()) {
+            throw new WebApplicationException("User already exists with this email", 409);
+        }
+
         UserRepresentation user = new UserRepresentation();
         user.setFirstName(firstName);
         user.setLastName(lastName);
         user.setEmail(email);
         user.setUsername(email);
         user.setEnabled(true);
+        user.setEmailVerified(false);
 
         Map<String, List<String>> attributes = new HashMap<>();
         attributes.put("birthdate", List.of(birthdate));
@@ -66,12 +89,59 @@ public class KeycloakService {
         credential.setValue(password);
         user.setCredentials(List.of(credential));
 
-        var response = keycloak.realm(realm).users().create(user);
+        Response response = keycloak.realm(realm).users().create(user);
         if (response.getStatus() != 201) {
             throw new WebApplicationException("User creation failed: " + response.getStatus(), response.getStatus());
         }
 
-        return CreatedResponseUtil.getCreatedId(response);
+        String userId = CreatedResponseUtil.getCreatedId(response);
+
+        sendVerificationEmail(userId);
+
+        return userId;
+    }
+
+    public void sendVerificationEmail(String userId) {
+        try {
+            UserResource userResource = keycloak.realm(realm).users().get(userId);
+            userResource.sendVerifyEmail();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to send verification email: " + e.getMessage(), e);
+        }
+    }
+
+    public AccessTokenResponse login(String email, String password) {
+        List<UserRepresentation> users = keycloak.realm(realm).users().search(email);
+
+        if (users.isEmpty()) {
+            throw new WebApplicationException("User not found", Response.Status.NOT_FOUND);
+        }
+
+        UserRepresentation user = users.get(0);
+
+        if (!Boolean.TRUE.equals(user.isEmailVerified())) {
+            throw new WebApplicationException("Email not verified. Please check your inbox.", Response.Status.FORBIDDEN);
+        }
+
+        try {
+            Form form = new Form()
+                    .param("client_id", clientId)
+                    .param("client_secret", clientSecret)
+                    .param("username", email)
+                    .param("password", password)
+                    .param("grant_type", "password");
+
+            String tokenUrl = serverUrl + "/realms/" + realm + "/protocol/openid-connect/token";
+
+            AccessTokenResponse tokenResponse = client.target(tokenUrl)
+                    .request(MediaType.APPLICATION_JSON)
+                    .post(Entity.form(form), AccessTokenResponse.class);
+
+            return tokenResponse;
+
+        } catch (Exception e) {
+            throw new WebApplicationException("Invalid credentials", Response.Status.UNAUTHORIZED);
+        }
     }
 
     public List<UserRepresentation> getAllUsers() {
@@ -86,7 +156,6 @@ public class KeycloakService {
                 ? new HashMap<>(user.getAttributes())
                 : new HashMap<>();
 
-        // List of allowed fields
         List<String> allowedFields = List.of("phone", "street", "city", "postalCode");
 
         for (String key : allowedFields) {
@@ -99,4 +168,30 @@ public class KeycloakService {
         userResource.update(user);
     }
 
+    public void deleteUser(String userId) {
+        try {
+            keycloak.realm(realm).users().get(userId).remove();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to delete user: " + e.getMessage(), e);
+        }
+    }
+
+    /*public void sendPasswordResetEmail(String email) {
+        List<UserRepresentation> users = keycloak.realm(realm).users().search(email);
+
+        if (users.isEmpty()) {
+            throw new WebApplicationException("User not found with the given email", Response.Status.NOT_FOUND);
+        }
+
+        UserRepresentation user = users.get(0);
+
+        try {
+
+            keycloak.realm(realm).users().get(user.getId()).executeActionsEmail(
+                    List.of("UPDATE_PASSWORD")
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to send password reset email: " + e.getMessage(), e);
+        }
+    }*/
 }
