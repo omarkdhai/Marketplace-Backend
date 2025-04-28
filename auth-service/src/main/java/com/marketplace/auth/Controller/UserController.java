@@ -142,20 +142,21 @@ public class UserController {
         }
     }
 
-    /*@POST
-    @Path("/forgot-password")
-    public Response forgotPassword(Map<String, String> data) {
+    @POST
+    @Path("/code-email")
+    public Response sendCodeEmail(Map<String, String> data) {
         String email = data.get("email");
-        try {
-            keycloakService.sendPasswordResetEmail(email);
-            return Response.ok(Map.of("message", "Password reset email sent successfully.")).build();
-        } catch (Exception e) {
-            return Response.serverError()
-                    .entity(Map.of(
-                            "error", "Failed to send password reset email",
-                            "details", e.getMessage()
-                    ))
-                    .build();
+
+        if (email == null || email.isEmpty()) {
+            throw new WebApplicationException("Email is required", Response.Status.BAD_REQUEST);
         }
-    }*/
+
+        keycloakService.codeEmailVerif(email);
+
+        return Response.ok(Map.of(
+                "message", "Verification email sent successfully",
+                "email", email
+        )).build();
+    }
+
 }

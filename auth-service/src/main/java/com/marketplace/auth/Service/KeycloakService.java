@@ -3,6 +3,10 @@ package com.marketplace.auth.Service;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.mail.*;
+import jakarta.mail.internet.*;
+import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeMessage;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
@@ -20,15 +24,14 @@ import org.keycloak.representations.AccessTokenResponse;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @ApplicationScoped
 public class KeycloakService {
 
     private Client client;
     private Keycloak keycloak;
+
 
     @ConfigProperty(name = "keycloak.serverURL")
     private String serverUrl;
@@ -41,6 +44,12 @@ public class KeycloakService {
 
     @ConfigProperty(name = "keycloak.clientSecret")
     private String clientSecret;
+
+    @ConfigProperty(name = "mail.username")
+    String emailUsername;
+
+    @ConfigProperty(name = "mail.password")
+    String emailPassword;
 
     @PostConstruct
     void init() {
@@ -176,22 +185,72 @@ public class KeycloakService {
         }
     }
 
-    /*public void sendPasswordResetEmail(String email) {
+    public void codeEmailVerif(String email) {
         List<UserRepresentation> users = keycloak.realm(realm).users().search(email);
 
         if (users.isEmpty()) {
-            throw new WebApplicationException("User not found with the given email", Response.Status.NOT_FOUND);
+            throw new WebApplicationException("User not found", Response.Status.NOT_FOUND);
         }
 
         UserRepresentation user = users.get(0);
+        String userId = user.getId();
 
         try {
+            // 1. Generate random 4-digit code
+            String verificationCode = String.format("%04d", new Random().nextInt(10000));
 
-            keycloak.realm(realm).users().get(user.getId()).executeActionsEmail(
-                    List.of("UPDATE_PASSWORD")
-            );
+            // 2. Store code and expiry time (15 minutes) as user attributes
+            UserResource userResource = keycloak.realm(realm).users().get(userId);
+            UserRepresentation userRep = userResource.toRepresentation();
+            Map<String, List<String>> attributes = userRep.getAttributes() != null
+                    ? new HashMap<>(userRep.getAttributes())
+                    : new HashMap<>();
+
+            attributes.put("verification_code", List.of(verificationCode));
+            attributes.put("verification_expiry", List.of(String.valueOf(System.currentTimeMillis() + 900_000)));
+
+            userRep.setAttributes(attributes);
+            userResource.update(userRep);
+
+            // 3. Send real email
+            sendEmail(email, verificationCode);
+
         } catch (Exception e) {
-            throw new RuntimeException("Failed to send password reset email: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to send verification email: " + e.getMessage(), e);
         }
-    }*/
+    }
+
+    private void sendEmail(String recipientEmail, String code) {
+        Properties props = new Properties();
+        props.put("mail.smtp.auth", "true");
+        props.put("mail.smtp.starttls.enable", "true");
+        props.put("mail.smtp.host", "smtp.gmail.com");
+        props.put("mail.smtp.port", "587");
+
+        Session session = Session.getInstance(props, new jakarta.mail.Authenticator() {
+            protected PasswordAuthentication getPasswordAuthentication() {
+                return new PasswordAuthentication(emailUsername, emailPassword);
+            }
+        });
+
+        try {
+            Message message = new MimeMessage(session);
+            message.setFrom(new InternetAddress(emailUsername));
+            message.setRecipients(
+                    Message.RecipientType.TO,
+                    InternetAddress.parse(recipientEmail)
+            );
+            message.setSubject("Password Reset Verification Code");
+            message.setText("Your verification code is: " + code + "\n\nClick here to access to verify your identity: http://localhost:4200/security-code");
+
+            Transport.send(message);
+
+            System.out.println("Verification email sent successfully to: " + recipientEmail);
+
+        } catch (MessagingException e) {
+            throw new RuntimeException("Failed to send email: " + e.getMessage(), e);
+        }
+    }
+
+
 }
