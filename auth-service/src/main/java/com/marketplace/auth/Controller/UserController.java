@@ -6,9 +6,11 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.keycloak.admin.client.resource.UsersResource;
 import org.keycloak.representations.AccessTokenResponse;
 import org.keycloak.representations.idm.UserRepresentation;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -111,11 +113,25 @@ public class UserController {
     }
 
     @PUT
-    @Path("/{userId}/update-attributes")
-    public Response updateUserAttributes(@PathParam("userId") String userId, Map<String, String> newAttributes) {
+    @Path("/update-attributes")
+    public Response updateUserAttributesByEmail(Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "Email is required"))
+                    .build();
+        }
+
         try {
-            keycloakService.updateUserAttributes(userId, newAttributes);
+            Map<String, String> attributes = new HashMap<>(body);
+            attributes.remove("email");
+
+            keycloakService.updateUserAttributesByEmail(email, attributes);
             return Response.ok(Map.of("message", "User attributes updated successfully.")).build();
+        } catch (NotFoundException e) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(Map.of("error", e.getMessage()))
+                    .build();
         } catch (Exception e) {
             return Response.serverError()
                     .entity(Map.of(
@@ -126,11 +142,37 @@ public class UserController {
         }
     }
 
+    //Get user by Email
+    @POST
+    @Path("/find-by-email")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response getUserByEmail(LoginRequest loginRequest) {
+        String email = loginRequest.getEmail();
+
+        if (email == null || email.isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Email is required.")
+                    .build();
+        }
+
+        UserRepresentation user = keycloakService.getUserByEmail(email);
+
+        if (user == null) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("User not found")
+                    .build();
+        }
+
+        return Response.ok(user).build();
+    }
+
     @DELETE
-    @Path("/{userId}")
-    public Response deleteUser(@PathParam("userId") String userId) {
+    @Path("/delete")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response deleteUserByEmail(LoginRequest request) {
         try {
-            keycloakService.deleteUser(userId);
+            keycloakService.deleteUserByEmail(request.getEmail());
             return Response.ok(Map.of("message", "User deleted successfully.")).build();
         } catch (Exception e) {
             return Response.serverError()
@@ -142,6 +184,8 @@ public class UserController {
         }
     }
 
+
+    //Send a mail which contains a random verification code with a link to the front end
     @POST
     @Path("/code-email")
     public Response sendCodeEmail(Map<String, String> data) {
@@ -158,5 +202,46 @@ public class UserController {
                 "email", email
         )).build();
     }
+
+    //Verify the code all along the expiration time
+    @POST
+    @Path("/verify-code")
+    public Response verifyCode(Map<String, String> data) {
+        String email = data.get("email");
+        String code = data.get("code");
+
+        if (email == null || code == null || email.isEmpty() || code.isEmpty()) {
+            throw new WebApplicationException("Email and code are required", Response.Status.BAD_REQUEST);
+        }
+
+        keycloakService.verifyEmailCode(email, code);
+
+        return Response.ok(Map.of(
+                "message", "Verification successful"
+        )).build();
+    }
+
+    //Update Password
+    @PUT
+    @Path("/update-password")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response updatePassword(Map<String, String> data) {
+        String email = data.get("email");
+        String newPassword = data.get("newPassword");
+
+        if (email == null || email.isEmpty() || newPassword == null || newPassword.isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+
+        try {
+            keycloakService.updateUserPassword(email, newPassword);
+            return Response.ok().build();
+        } catch (WebApplicationException e) {
+            return Response.status(e.getResponse().getStatus()).build();
+        } catch (Exception e) {
+            return Response.serverError().build();
+        }
+    }
+
 
 }
