@@ -166,6 +166,7 @@ public class KeycloakService {
         UserRepresentation user = users.get(0);
         UserResource userResource = keycloak.realm(realm).users().get(user.getId());
 
+        // Update standard fields
         if (newAttributes.containsKey("firstname")) {
             user.setFirstName(newAttributes.get("firstname"));
         }
@@ -173,10 +174,13 @@ public class KeycloakService {
             user.setLastName(newAttributes.get("lastname"));
         }
 
-        Map<String, List<String>> updatedAttributes = user.getAttributes() != null
-                ? new HashMap<>(user.getAttributes())
-                : new HashMap<>();
+        // Merge with existing attributes
+        Map<String, List<String>> updatedAttributes = new HashMap<>();
+        if (user.getAttributes() != null) {
+            updatedAttributes.putAll(user.getAttributes());
+        }
 
+        // List of editable attributes
         List<String> allowedAttributes = List.of("phone", "birthdate", "street", "city", "postalCode");
 
         for (String key : allowedAttributes) {
@@ -208,7 +212,7 @@ public class KeycloakService {
                 throw new RuntimeException("User with email " + email + " not found.");
             }
 
-            String userId = users.get(0).getId(); // Assuming email is unique
+            String userId = users.get(0).getId();
             keycloak.realm(realm).users().get(userId).remove();
         } catch (Exception e) {
             throw new RuntimeException("Failed to delete user by email: " + e.getMessage(), e);
@@ -340,5 +344,60 @@ public class KeycloakService {
         userResource.resetPassword(newCredential);
     }
 
+    public void updateUserPasswordWithOldPassword(String email, String oldPassword, String newPassword) {
+        // Try to authenticate with old password
+        try {
+            Keycloak keycloakAuth = KeycloakBuilder.builder()
+                    .serverUrl(serverUrl)
+                    .realm(realm)
+                    .username(email)
+                    .password(oldPassword)
+                    .clientId(clientId)
+                    .clientSecret(clientSecret)
+                    .grantType(OAuth2Constants.PASSWORD)
+                    .build();
+
+            // Trigger login to verify credentials
+            keycloakAuth.tokenManager().getAccessToken();
+        } catch (Exception e) {
+            throw new WebApplicationException("Old password is incorrect", Response.Status.UNAUTHORIZED);
+        }
+
+        // If login successful, update password
+        List<UserRepresentation> users = keycloak.realm(realm).users().search(email);
+
+        if (users.isEmpty()) {
+            throw new WebApplicationException("User not found", Response.Status.NOT_FOUND);
+        }
+
+        UserRepresentation user = users.get(0);
+        String userId = user.getId();
+
+        UserResource userResource = keycloak.realm(realm).users().get(userId);
+
+        CredentialRepresentation newCredential = new CredentialRepresentation();
+        newCredential.setTemporary(false);
+        newCredential.setType(CredentialRepresentation.PASSWORD);
+        newCredential.setValue(newPassword);
+
+        userResource.resetPassword(newCredential);
+    }
+
+    public void logout(String email) {
+        List<UserRepresentation> users = keycloak.realm(realm).users().search(email);
+
+        if (users.isEmpty()) {
+            throw new WebApplicationException("User not found", Response.Status.NOT_FOUND);
+        }
+
+        UserRepresentation user = users.get(0);
+        String userId = user.getId();
+
+        try {
+            keycloak.realm(realm).users().get(userId).logout();
+        } catch (Exception e) {
+            throw new WebApplicationException("Logout failed", Response.Status.INTERNAL_SERVER_ERROR);
+        }
+    }
 
 }

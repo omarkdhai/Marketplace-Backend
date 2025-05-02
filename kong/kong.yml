@@ -27,6 +27,7 @@ services:
       - name: auth-route
         paths:
           - /api/admin
+          - /api/v1/users
         strip_path: false
 
   - name: support-service

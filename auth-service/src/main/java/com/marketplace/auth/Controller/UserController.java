@@ -6,7 +6,6 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.keycloak.admin.client.resource.UsersResource;
 import org.keycloak.representations.AccessTokenResponse;
 import org.keycloak.representations.idm.UserRepresentation;
 
@@ -114,9 +113,11 @@ public class UserController {
 
     @PUT
     @Path("/update-attributes")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
     public Response updateUserAttributesByEmail(Map<String, String> body) {
         String email = body.get("email");
-        if (email == null || email.isEmpty()) {
+        if (email == null || email.isBlank()) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity(Map.of("error", "Email is required"))
                     .build();
@@ -243,5 +244,46 @@ public class UserController {
         }
     }
 
+    @PUT
+    @Path("/update-old-password")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response updatePasswordWithOldPassword(Map<String, String> data) {
+        String email = data.get("email");
+        String oldPassword = data.get("oldPassword");
+        String newPassword = data.get("newPassword");
+
+        if (email == null || email.isEmpty() ||
+                oldPassword == null || oldPassword.isEmpty() ||
+                newPassword == null || newPassword.isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+
+        try {
+            keycloakService.updateUserPasswordWithOldPassword(email, oldPassword, newPassword);
+            return Response.ok().build();
+        } catch (WebApplicationException e) {
+            return Response.status(e.getResponse().getStatus()).build();
+        } catch (Exception e) {
+            return Response.serverError().build();
+        }
+    }
+
+    @POST
+    @Path("/logout")
+    public Response logout(Map<String, String> data) {
+        try {
+            String email = data.get("email");
+            keycloakService.logout(email);
+            return Response.ok(Map.of("message", "User logged out successfully")).build();
+        } catch (WebApplicationException e) {
+            return Response.status(e.getResponse().getStatus())
+                    .entity(Map.of("error", "Logout failed", "details", e.getMessage()))
+                    .build();
+        } catch (Exception e) {
+            return Response.serverError()
+                    .entity(Map.of("error", "Unexpected error during logout", "details", e.getMessage()))
+                    .build();
+        }
+    }
 
 }
