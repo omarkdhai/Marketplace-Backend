@@ -1,104 +1,129 @@
 package org.marketplace.notification.Service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.mailer.Mail;
 import io.quarkus.mailer.Mailer;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.bson.types.ObjectId;
-import org.marketplace.notification.Entity.Notification;
-import org.marketplace.notification.Enum.NotifType;
-import org.marketplace.notification.Repository.NotificationRepository;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
+import org.marketplace.notification.Entity.NotificationPreferences;
+import org.marketplace.notification.Entity.NotificationRequest;
+import org.marketplace.notification.Entity.NotificationType;
 
-import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @ApplicationScoped
 public class NotificationService {
+
+    private static final Logger LOG = Logger.getLogger(NotificationService.class);
+
     @Inject
-    NotificationRepository repository;
+    KeycloakUserService keycloakUserService;
 
     @Inject
     Mailer mailer;
 
-    @Inject
-    WebSocketSessionManager webSocketManager;
+    @ConfigProperty(name = "quarkus.mailer.from")
+    String mailFrom;
 
-    @Inject
-    ObjectMapper objectMapper;
-
-
-    public List<Notification> getAllNotifications() {
-        return Notification.listAll();
+    public NotificationPreferences getUserPreferences(String userId) {
+        Map<String, List<String>> attributes = keycloakUserService.getUserAttributes(userId);
+        return NotificationPreferences.fromAttributes(attributes);
     }
 
-    public void sendEmail(String to, String subject, String content) {
-        mailer.send(Mail.withText(to, subject, content));
-
-        Notification notification = new Notification();
-        notification.setUserId(to);
-        notification.setTitle(subject);
-        notification.setMessage(content);
-        notification.setType(NotifType.EMAIL);
-        notification.setCreatedAt(LocalDateTime.now());
-
-        repository.persist(notification);
+    public boolean updateUserPreferences(String userId, NotificationPreferences preferences) {
+        Map<String, List<String>> attributes = preferences.toAttributes();
+        return keycloakUserService.updateUserAttributes(userId, attributes);
     }
 
-    public List<Notification> getAllEmails() {
-        return repository.find("type", NotifType.EMAIL).list();
-    }
+    public void sendNotification(String userId, NotificationRequest request) {
+        LOG.infof("Received notification request for user %s, type %s", userId, request.getType());
 
-    public void sendInAppNotification(String userId, String title, String message) {
-        Notification notification = new Notification();
-        notification.setUserId(userId);
-        notification.setTitle(title);
-        notification.setMessage(message);
-        notification.setType(NotifType.IN_APP);
-        notification.setCreatedAt(LocalDateTime.now());
+        // Get User Preferences
+        NotificationPreferences prefs = getUserPreferences(userId);
 
-        repository.persist(notification);
-    }
+        // Check if user exists and get email (only if needed)
+        Optional<String> userEmailOpt = Optional.empty();
+        boolean requiresEmail = shouldSendEmail(prefs, request.getType());
 
-    public List<Notification> getUserNotifications(String userId) {
-        return repository.findByUserId(userId);
-    }
+        if (requiresEmail) {
+            userEmailOpt = keycloakUserService.getUserEmail(userId);
+            if (userEmailOpt.isEmpty()) {
+                LOG.warnf("Cannot send email. User %s not found or has no email.", userId);
+                requiresEmail = false; // Skip email if user/email not found
+            }
+        }
 
-    public List<Notification> getUnreadNotifications(String userId) {
-        return repository.findUnreadByUserId(userId);
-    }
+        // Send Email if applicable
+        if (requiresEmail) {
+            sendEmailNotification(userEmailOpt.get(), request.getSubject(), request.getBody());
+        } else {
+            LOG.debugf("Skipping email for user %s, type %s based on preferences or missing email.", userId, request.getType());
+        }
 
-    public void markAsRead(String notificationId) {
-        Notification notification = repository.findById(new ObjectId(notificationId));
-        if (notification != null) {
-            notification.setRead(true);
-            repository.update(notification);
+
+        // Send Push Notification if applicable
+        if (shouldSendPush(prefs, request.getType())) {
+            sendPushNotification(userId, request.getSubject(), request.getBody(), request.getData());
+        } else {
+            LOG.debugf("Skipping push notification for user %s, type %s based on preferences.", userId, request.getType());
         }
     }
 
-    public void sendWebSocketNotification(String userId, String title, String message) {
+    private boolean shouldSendEmail(NotificationPreferences prefs, NotificationType type) {
+        if (!prefs.isEmailEnabled()) return false;
+
+        return switch (type) {
+            case ORDER_STATUS -> prefs.isEmailOrderStatus();
+            case LOW_STOCK -> prefs.isEmailLowStock();
+            case PROMOTION -> prefs.isEmailPromotions();
+            case GENERAL -> true; // Assuming general emails are always sent if email is enabled
+        };
+    }
+
+    private boolean shouldSendPush(NotificationPreferences prefs, NotificationType type) {
+        if (!prefs.isPushEnabled()) return false;
+
+        return switch (type) {
+            case ORDER_STATUS -> prefs.isPushOrderStatus();
+            case LOW_STOCK -> prefs.isPushLowStock();
+            case PROMOTION -> prefs.isPushPromotions();
+            case GENERAL -> true; // Assuming general push are always sent if push is enabled
+        };
+    }
+
+    private void sendEmailNotification(String toEmail, String subject, String body) {
         try {
-            Notification notification = new Notification();
-            notification.setUserId(userId);
-            notification.setTitle(title);
-            notification.setMessage(message);
-            notification.setType(NotifType.WEBSOCKET);
-            notification.setCreatedAt(LocalDateTime.now());
-
-            repository.persist(notification);
-
-            Map<String, String> wsMessage = new HashMap<>();
-            wsMessage.put("type", "NOTIFICATION");
-            wsMessage.put("title", title);
-            wsMessage.put("message", message);
-
-            String jsonMessage = objectMapper.writeValueAsString(wsMessage);
-            webSocketManager.sendToUser(userId, jsonMessage);
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
+            LOG.infof("Attempting to send email to %s with subject: %s", toEmail, subject);
+            mailer.send(Mail.withText(toEmail, subject, body).setFrom(mailFrom));
+            LOG.infof("Successfully sent email to %s", toEmail);
+        } catch (Exception e) {
+            LOG.errorf(e, "Failed to send email to %s", toEmail);
         }
+    }
+
+    private void sendPushNotification(String userId, String title, String body, Map<String, String> data) {
+        // --- Placeholder for Push Notification Logic ---
+        // This is where you would integrate with FCM, APNS, etc.
+        // You would typically need:
+        // 1. A way to retrieve the user's device registration token(s) (often stored in a separate DB).
+        // 2. A client library for your chosen push service (e.g., Firebase Admin SDK).
+        // 3. Logic to construct the push message payload (title, body, data).
+        // 4. Sending the message via the push service client.
+
+        LOG.infof("--- PUSH NOTIFICATION ---");
+        LOG.infof("To User ID: %s", userId);
+        LOG.infof("Title: %s", title);
+        LOG.infof("Body: %s", body);
+        LOG.infof("Data: %s", data != null ? data.toString() : "null");
+        LOG.infof("--- END PUSH (Placeholder) ---");
+
+        // Example: In a real scenario you might do:
+        // List<String> deviceTokens = getDeviceTokensForUser(userId);
+        // for (String token : deviceTokens) {
+        //     firebaseMessagingClient.send(token, title, body, data);
+        // }
     }
 }
