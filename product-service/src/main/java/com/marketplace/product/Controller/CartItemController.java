@@ -37,7 +37,6 @@ public class CartItemController {
     }
 
     // Remove a specific cart item
-
     @DELETE
     @Path("/{userId}/{productId}")
     public Response removeFromCart(@PathParam("userId") String userId, @PathParam("productId") String productId) {
@@ -67,4 +66,13 @@ public class CartItemController {
             return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
         }
     }
+
+    // Clear Cart
+    @DELETE
+    @Path("/clear/{userId}")
+    public Response clearCart(@PathParam("userId") String userId) {
+        cartService.clearCart(userId);
+        return Response.noContent().build();
+    }
+
 }

@@ -150,14 +150,21 @@ public class ProductController {
 
     @PUT
     @Path("/{id}")
-    @Consumes("application/json")
-    @Produces("application/json")
-    public Response updateProduct(@PathParam("id") String id, Product product) {
-        Product updatedProduct = productService.updateProduct(id, product);
-        if (updatedProduct != null) {
-            return Response.ok(updatedProduct).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public Response updateProduct(@PathParam("id") String id, @MultipartForm ProductForm form) {
+        try {
+            Product updated = productService.updateProduct(id, form);
+            return Response.ok(updated).build();
+        } catch (WebApplicationException e) {
+            return Response.status(e.getResponse().getStatus())
+                    .entity(e.getMessage())
+                    .build();
+        } catch (Exception e) {
+            e.printStackTrace();
+            LOGGER.error("Failed to update product", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity("Failed to update product.")
+                    .build();
         }
     }
 

@@ -110,7 +110,7 @@ public class CartItemService {
             throw new RuntimeException("Cart not found for user: " + userId);
         }
 
-        CartItem cartItem = cartItems.get(0); // Assuming one cart per user
+        CartItem cartItem = cartItems.get(0);
         boolean found = false;
 
         for (CartProduct cp : cartItem.getProducts()) {
@@ -161,5 +161,17 @@ public class CartItemService {
         cartItem.update();
         return cartItem;
     }
+
+    // Clear Cart
+    public void clearCart(String userId) {
+        CartItem cartItem = cartItemRepository.find("userId", userId).firstResult();
+
+        if (cartItem != null) {
+            cartItem.getProducts().clear();
+            cartItem.setTotalPrice(0.0);
+            cartItemRepository.persistOrUpdate(cartItem);
+        }
+    }
+
 
 }
