@@ -28,4 +28,16 @@ public class ContactController {
     public List<ContactMessage> getAllContacts() {
         return service.getAll();
     }
+
+    @DELETE
+    @Path("/{id}")
+    public Response deleteMessage(@PathParam("id") String id) {
+        try {
+            service.deleteById(id);
+            return Response.noContent().build();
+        } catch (NotFoundException e) {
+            return Response.status(Response.Status.NOT_FOUND).entity(e.getMessage()).build();
+        }
+    }
+
 }
