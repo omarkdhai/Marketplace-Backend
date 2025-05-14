@@ -1,14 +1,14 @@
 package com.marketplace.product.Controller;
 
 import com.marketplace.product.DTO.ProceedOrderDTO;
+import com.marketplace.product.Entity.ProceedOrder;
 import com.marketplace.product.Service.ProceedOrderService;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.POST;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+
+import java.util.List;
 
 @Path("/api/v1/orders")
 @Consumes(MediaType.APPLICATION_JSON)
@@ -22,5 +22,21 @@ public class ProceedOrderController {
     public Response submitOrder(ProceedOrderDTO dto) {
         service.save(dto);
         return Response.status(Response.Status.CREATED).build();
+    }
+
+    @GET
+    public List<ProceedOrder> getAllOrders() {
+        return service.getAllOrders();
+    }
+
+    @DELETE
+    @Path("/{id}")
+    public Response deleteOrder(@PathParam("id") String id) {
+        boolean deleted = service.deleteOrder(id);
+        if (deleted) {
+            return Response.noContent().build();
+        } else {
+            return Response.status(Response.Status.NOT_FOUND).entity("Order not found").build();
+        }
     }
 }

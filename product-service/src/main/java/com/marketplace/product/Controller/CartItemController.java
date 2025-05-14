@@ -44,6 +44,7 @@ public class CartItemController {
         return Response.noContent().build(); // 204 No Content
     }
 
+    // Increase product quantity
     @PUT
     @Path("/increase")
     public Response increaseQuantity(AddToCartRequest addToCartRequest) {
