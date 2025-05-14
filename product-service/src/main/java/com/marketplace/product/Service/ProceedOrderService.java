@@ -6,6 +6,7 @@ import com.marketplace.product.Entity.ProceedOrder;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @ApplicationScoped
@@ -29,8 +30,14 @@ public class ProceedOrderService {
         order.satisfaction = dto.satisfaction;
         order.paymentMethod = dto.paymentMethod;
 
-        order.persist();
+        CartItem cartItem = cartItemService.getCartByUserId(dto.userId);
 
+        if (cartItem != null) {
+            order.products = new ArrayList<>(cartItem.getProducts());
+            order.totalPrice = cartItem.getTotalPrice();
+        }
+        
+        order.persist();
         cartItemService.clearCart(dto.userId);
     }
 

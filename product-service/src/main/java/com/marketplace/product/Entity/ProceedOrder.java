@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 
 @Getter
@@ -27,4 +29,7 @@ public class ProceedOrder extends PanacheMongoEntity {
     public int satisfaction;
     public String paymentMethod;
     public LocalDateTime createdAt = LocalDateTime.now();
+
+    public List<CartProduct> products = new ArrayList<>();
+    public double totalPrice;
 }

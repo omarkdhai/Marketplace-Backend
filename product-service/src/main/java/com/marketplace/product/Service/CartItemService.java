@@ -77,6 +77,10 @@ public class CartItemService {
         return cartItemRepository.findByUserId(userId);
     }
 
+    public CartItem getCartByUserId(String userId) {
+        return cartItemRepository.find("userId", userId).firstResult();
+    }
+
     public void removeProductFromCart(String userId, String productId) {
         CartItem cart = CartItem.find("userId", userId).firstResult();
         if (cart == null) {
