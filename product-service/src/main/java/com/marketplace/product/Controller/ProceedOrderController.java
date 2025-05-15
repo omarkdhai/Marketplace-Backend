@@ -39,4 +39,17 @@ public class ProceedOrderController {
             return Response.status(Response.Status.NOT_FOUND).entity("Order not found").build();
         }
     }
+
+    @PUT
+    @Path("/{id}/toggle-status")
+    public Response toggleOrderStatus(@PathParam("id") String id) {
+        boolean success = service.toggleOrderStatus(id);
+        if (success) {
+            return Response.ok().build();
+        } else {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("Order not found")
+                    .build();
+        }
+    }
 }

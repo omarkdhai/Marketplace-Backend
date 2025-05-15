@@ -29,6 +29,7 @@ public class ProceedOrder extends PanacheMongoEntity {
     public int satisfaction;
     public String paymentMethod;
     public LocalDateTime createdAt = LocalDateTime.now();
+    public Boolean orderStatus = false;
 
     public List<CartProduct> products = new ArrayList<>();
     public double totalPrice;

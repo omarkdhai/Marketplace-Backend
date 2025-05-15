@@ -5,6 +5,7 @@ import com.marketplace.product.Entity.CartItem;
 import com.marketplace.product.Entity.ProceedOrder;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,5 +48,15 @@ public class ProceedOrderService {
 
     public boolean deleteOrder(String id) {
         return ProceedOrder.deleteById(new org.bson.types.ObjectId(id));
+    }
+
+    public boolean toggleOrderStatus(String orderId) {
+        ProceedOrder order = ProceedOrder.findById(new ObjectId(orderId));
+        if (order != null) {
+            order.setOrderStatus(!Boolean.TRUE.equals(order.getOrderStatus())); // toggle
+            order.persistOrUpdate();
+            return true;
+        }
+        return false;
     }
 }

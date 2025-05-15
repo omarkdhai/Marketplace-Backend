@@ -13,4 +13,5 @@ public class ProceedOrderDTO {
     public String tvaNumber;
     public int satisfaction;
     public String paymentMethod;
+    public Boolean orderStatus = false;
 }
