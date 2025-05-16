@@ -45,6 +45,10 @@ public class ProductForm {
     @PartType("text/plain")
     private String keywords;
 
+    @FormParam("discount")
+    @PartType("text/plain")
+    public double discount;
+
     @FormParam("photo")
     @PartType("application/octet-stream")
     private InputPart photo;

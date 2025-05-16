@@ -89,7 +89,8 @@ public class ProductController {
                     ProductStatus.valueOf(productForm.getStatus().toUpperCase()),
                     productForm.getCreationDate(),
                     categories,
-                    keywords
+                    keywords,
+                    productForm.getDiscount()
             );
 
             // Convert the photo InputPart to byte[] and set the photo
@@ -153,6 +154,9 @@ public class ProductController {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response updateProduct(@PathParam("id") String id, @MultipartForm ProductForm form) {
         try {
+            if (form.getDiscount() < 0 || form.getDiscount() > 100) {
+                return Response.status(Response.Status.BAD_REQUEST).entity("Discount must be between 0 and 100.").build();
+            }
             Product updated = productService.updateProduct(id, form);
             return Response.ok(updated).build();
         } catch (WebApplicationException e) {

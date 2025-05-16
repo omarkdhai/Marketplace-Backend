@@ -21,6 +21,7 @@ import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.admin.client.resource.UsersResource;
 import org.keycloak.representations.AccessTokenResponse;
 import org.keycloak.representations.idm.CredentialRepresentation;
+import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 
 import java.util.*;
@@ -126,9 +127,56 @@ public class KeycloakService {
         }
 
         UserRepresentation user = users.get(0);
+        if (!Boolean.TRUE.equals(user.isEmailVerified())) {
+            throw new WebApplicationException("Email not verified. Please check your inbox.", Response.Status.FORBIDDEN);
+        }
+
+        try {
+            Form form = new Form()
+                    .param("client_id", clientId)
+                    .param("client_secret", clientSecret)
+                    .param("username", email)
+                    .param("password", password)
+                    .param("grant_type", "password");
+
+            String tokenUrl = serverUrl + "/realms/" + realm + "/protocol/openid-connect/token";
+            AccessTokenResponse tokenResponse = client.target(tokenUrl)
+                    .request(MediaType.APPLICATION_JSON)
+                    .post(Entity.form(form), AccessTokenResponse.class);
+
+            return tokenResponse;
+        } catch (Exception e) {
+            throw new WebApplicationException("Invalid credentials", Response.Status.UNAUTHORIZED);
+        }
+    }
+
+    public AccessTokenResponse loginAdmin(String email, String password) {
+        List<UserRepresentation> users = keycloak.realm(realm).users().search(email);
+
+        if (users.isEmpty()) {
+            throw new WebApplicationException("User not found", Response.Status.NOT_FOUND);
+        }
+
+        UserRepresentation user = users.get(0);
 
         if (!Boolean.TRUE.equals(user.isEmailVerified())) {
             throw new WebApplicationException("Email not verified. Please check your inbox.", Response.Status.FORBIDDEN);
+        }
+
+        // Check if the user has the "admin" role
+        String userId = user.getId();
+        List<RoleRepresentation> userRoles = keycloak.realm(realm)
+                .users()
+                .get(userId)
+                .roles()
+                .realmLevel()
+                .listEffective();
+
+        boolean isAdmin = userRoles.stream()
+                .anyMatch(role -> role.getName().equalsIgnoreCase("admin"));
+
+        if (!isAdmin) {
+            throw new WebApplicationException("Access denied: admin role required", Response.Status.FORBIDDEN);
         }
 
         try {

@@ -42,7 +42,9 @@ public class Product extends PanacheMongoEntity {
 
     private List<String> keywords;
 
-    public Product(String name, String description, double price, ProductStatus status, Instant creationDate, List<CategoryInfo> categories, List<String> keywords) {
+    private double discount = 0.0;
+
+    public Product(String name, String description, double price, ProductStatus status, Instant creationDate, List<CategoryInfo> categories, List<String> keywords, double discount) {
         this.name = name;
         this.description = description;
         this.price = price;
@@ -50,9 +52,17 @@ public class Product extends PanacheMongoEntity {
         this.creationDate = creationDate;
         this.categories = categories;
         this.keywords = keywords;
+        this.discount = discount;
     }
 
     public void toggleFavorite() {
         this.favorite = !this.favorite;
+    }
+
+    public double getEffectivePrice() {
+        if (this.discount <= 0 || this.discount > 100) {
+            return this.price; // No discount or invalid discount
+        }
+        return this.price * (1 - (this.discount / 100.0));
     }
 }

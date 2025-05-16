@@ -77,6 +77,7 @@ public class ProductService {
         existingProduct.setName(form.getName());
         existingProduct.setDescription(form.getDescription());
         existingProduct.setPrice(form.getPrice());
+        existingProduct.setDiscount(form.getDiscount());
 
         // Enum conversion with safety
         try {

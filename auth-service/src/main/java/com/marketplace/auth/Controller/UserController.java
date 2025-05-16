@@ -96,6 +96,32 @@ public class UserController {
         }
     }
 
+    @POST
+    @Path("/login-admin")
+    public Response loginAdmin(LoginRequest loginRequest) {
+        try {
+            AccessTokenResponse tokenResponse = keycloakService.loginAdmin(
+                    loginRequest.getEmail(),
+                    loginRequest.getPassword()
+            );
+            return Response.ok(tokenResponse).build();
+        } catch (WebApplicationException e) {
+            return Response.status(e.getResponse().getStatus())
+                    .entity(Map.of(
+                            "error", "Login failed",
+                            "details", e.getMessage()
+                    ))
+                    .build();
+        } catch (Exception e) {
+            return Response.serverError()
+                    .entity(Map.of(
+                            "error", "Unexpected error during login",
+                            "details", e.getMessage()
+                    ))
+                    .build();
+        }
+    }
+
     @GET
     public Response getUsers() {
         try {
