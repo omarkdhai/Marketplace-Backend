@@ -5,6 +5,7 @@ import io.smallrye.common.constraint.NotNull;
 import lombok.*;
 import org.bson.types.ObjectId;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,6 +23,14 @@ public class CartItem extends PanacheMongoEntity {
     public String userId;
 
     public double totalPrice;
+
+    public BigInteger blockchainTransactionId; // The ID from the smart contract's TransactionCreated event
+    public String buyerEthAddress;
+    public String sellerEthAddress;
+    public BigInteger blockchainRegisteredAmount; // The amount (fiat reference) registered in the smart contract
+    public String blockchainState; // "CREATED", "FUNDED_SYMBOLICALLY", "ITEM_SENT"
+    public String paymentStatus; // "PENDING_BLOCKCHAIN_CONFIRMATION", "PAYMENT_AUTHORIZED_OFFCHAIN"
+
 
     public void updateTotalPrice() {
         this.totalPrice = products.stream()

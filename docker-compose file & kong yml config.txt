@@ -134,3 +134,7 @@ services:
         paths:
           - /api/admin
         strip_path: false
+
+
+
+npx hardhat run scripts/deploy.js --network localhost

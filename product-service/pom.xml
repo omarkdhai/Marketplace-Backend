@@ -15,6 +15,8 @@
         <quarkus.platform.version>3.18.2</quarkus.platform.version>
         <skipITs>true</skipITs>
         <surefire-plugin.version>3.5.2</surefire-plugin.version>
+        <web3j.version>4.8.7</web3j.version>
+        <shared.artifacts.path>${project.basedir}/../shared-blockchain-artifacts</shared.artifacts.path>
     </properties>
 
     <dependencyManagement>
@@ -89,6 +91,11 @@
             <artifactId>rest-assured</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.web3j</groupId>
+            <artifactId>core</artifactId>
+            <version>4.8.7</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -147,6 +154,32 @@
                         <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
                         <maven.home>${maven.home}</maven.home>
                     </systemPropertyVariables>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.web3j</groupId>
+                <artifactId>web3j-maven-plugin</artifactId>
+                <version>4.8.7</version>
+                <executions>
+                    <execution>
+                        <id>generate-web3j-sources</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>generate-sources</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <packageName>com.marketplace.product.contracts</packageName>
+                    <outputDirectory>
+                        <java>${project.build.sourceDirectory}</java>
+                    </outputDirectory>
+                    <abiSourceFiles>
+                        <directory>${project.basedir}/src/main/resources/abi</directory>
+                        <includes>
+                            <include>MarketplaceEscrow.json</include> <!-- Look for the .json file -->
+                        </includes>
+                    </abiSourceFiles>
                 </configuration>
             </plugin>
         </plugins>
