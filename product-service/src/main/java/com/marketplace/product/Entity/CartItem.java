@@ -15,7 +15,7 @@ import java.util.List;
 @NoArgsConstructor
 public class CartItem extends PanacheMongoEntity {
 
-    private ObjectId id;
+    public ObjectId id;
 
     private List<CartProduct> products = new ArrayList<>();
 

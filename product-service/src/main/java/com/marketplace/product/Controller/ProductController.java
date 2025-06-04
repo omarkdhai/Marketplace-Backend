@@ -1,8 +1,6 @@
 package com.marketplace.product.Controller;
 
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.marketplace.product.DTO.ProductForm;
 import com.marketplace.product.Entity.CategoryInfo;
 import com.marketplace.product.Entity.Product;

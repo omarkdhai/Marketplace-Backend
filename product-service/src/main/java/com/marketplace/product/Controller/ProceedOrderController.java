@@ -1,13 +1,17 @@
 package com.marketplace.product.Controller;
 
+import com.marketplace.product.DTO.AdminBlockchainTransactionDto;
 import com.marketplace.product.DTO.ProceedOrderDTO;
 import com.marketplace.product.Entity.ProceedOrder;
 import com.marketplace.product.Service.ProceedOrderService;
+import com.marketplace.product.contracts.Web3jClientProducer;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.web3j.protocol.core.methods.response.Transaction;
 
+import java.io.IOException;
 import java.util.List;
 
 @Path("/api/v1/orders")
@@ -17,9 +21,15 @@ public class ProceedOrderController {
 
     @Inject
     ProceedOrderService service;
+    @Inject
+    Web3jClientProducer web3jClientProducer;
 
     @POST
-    public Response submitOrder(ProceedOrderDTO dto) {
+    public Response submitOrder(ProceedOrderDTO dto) throws IOException {
+        Transaction transaction = web3jClientProducer.getLastTransaction();
+        dto.buyerEthAddress=transaction.getTo();
+        dto.sellerEthAddress=transaction.getFrom();
+        dto.blockchainTransactionId=transaction.getTransactionIndexRaw();
         service.save(dto);
         return Response.status(Response.Status.CREATED).build();
     }

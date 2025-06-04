@@ -2,8 +2,6 @@ package com.marketplace.product.Controller;
 
 import com.marketplace.product.DTO.CategoryInfoForm;
 import com.marketplace.product.Entity.CategoryInfo;
-import com.marketplace.product.Entity.Product;
-import com.marketplace.product.Enum.ProductStatus;
 import com.marketplace.product.Service.CategoryInfoService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;

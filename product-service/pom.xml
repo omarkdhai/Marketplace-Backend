@@ -80,6 +80,12 @@
             <scope>provided</scope>
         </dependency>
 
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>4.12.0</version> <!-- Or a recent compatible version -->
+        </dependency>
+
         <!-- Test dependencies -->
         <dependency>
             <groupId>io.quarkus</groupId>

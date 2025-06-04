@@ -3,12 +3,10 @@ package com.marketplace.product.DTO;
 
 
 import jakarta.ws.rs.FormParam;
-import jakarta.ws.rs.core.MediaType;
 import lombok.Data;
 import org.jboss.resteasy.annotations.providers.multipart.PartType;
 import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 
-import java.io.InputStream;
 import java.time.Instant;
 import java.util.List;
 

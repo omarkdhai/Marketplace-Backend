@@ -1,5 +1,7 @@
 package com.marketplace.product.DTO;
 
+import java.util.Date;
+
 public class ProceedOrderDTO {
 
     public String userId;
@@ -13,5 +15,11 @@ public class ProceedOrderDTO {
     public String tvaNumber;
     public int satisfaction;
     public String paymentMethod;
+    public String blockchainTransactionId;
+    public String buyerEthAddress;
+    public String sellerEthAddress;
+    public String blockchainRegisteredAmount;
+    public String blockchainState;
+    public Date lastBlockchainUpdate;
     public Boolean orderStatus = false;
 }

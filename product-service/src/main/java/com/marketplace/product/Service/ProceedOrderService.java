@@ -30,6 +30,12 @@ public class ProceedOrderService {
         order.tvaNumber = dto.tvaNumber;
         order.satisfaction = dto.satisfaction;
         order.paymentMethod = dto.paymentMethod;
+        //order.blockchainTransactionId = dto.blockchainTransactionId;
+        //order.buyerEthAddress = dto.buyerEthAddress;
+        //order.sellerEthAddress = dto.sellerEthAddress;
+        //order.blockchainState = dto.blockchainState;
+        //order.blockchainRegisteredAmount = dto.blockchainRegisteredAmount;
+        //order.lastBlockchainUpdate = dto.lastBlockchainUpdate;
 
         CartItem cartItem = cartItemService.getCartByUserId(dto.userId);
 

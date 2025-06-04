@@ -8,6 +8,7 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 
@@ -33,4 +34,13 @@ public class ProceedOrder extends PanacheMongoEntity {
 
     public List<CartProduct> products = new ArrayList<>();
     public double totalPrice;
+
+    public String paymentStatus;
+
+    public String blockchainTransactionId;
+    public String buyerEthAddress;
+    public String sellerEthAddress;
+    public String blockchainRegisteredAmount;
+    public String blockchainState;
+    public Date lastBlockchainUpdate;
 }
