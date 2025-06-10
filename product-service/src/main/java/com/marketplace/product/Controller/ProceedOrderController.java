@@ -26,10 +26,6 @@ public class ProceedOrderController {
 
     @POST
     public Response submitOrder(ProceedOrderDTO dto) throws IOException {
-        Transaction transaction = web3jClientProducer.getLastTransaction();
-        dto.buyerEthAddress=transaction.getTo();
-        dto.sellerEthAddress=transaction.getFrom();
-        dto.blockchainTransactionId=transaction.getTransactionIndexRaw();
         service.save(dto);
         return Response.status(Response.Status.CREATED).build();
     }
