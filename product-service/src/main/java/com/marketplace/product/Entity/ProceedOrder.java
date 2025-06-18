@@ -36,6 +36,8 @@ public class ProceedOrder extends PanacheMongoEntity {
     public double totalPrice;
 
     public String paymentStatus;
+    public String paymentGatewayTransactionId;
+    public Date lastPaymentUpdate;
 
     public String blockchainTransactionId;
     public String buyerEthAddress;

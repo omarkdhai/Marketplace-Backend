@@ -1,7 +1,12 @@
 package com.marketplace.product.DTO;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.Date;
 
+@Getter
+@Setter
 public class ProceedOrderDTO {
 
     public String userId;
@@ -15,6 +20,8 @@ public class ProceedOrderDTO {
     public String tvaNumber;
     public int satisfaction;
     public String paymentMethod;
+    public String paymentStatus;
+    private String stripeCustomerId;
     public String blockchainTransactionId;
     public String buyerEthAddress;
     public String sellerEthAddress;

@@ -1,22 +1,21 @@
 package com.marketplace.payment.Services.Resources;
 
+import com.marketplace.payment.Services.DTO.*;
 import com.marketplace.payment.Services.StripeService;
-import com.stripe.exception.StripeException;
+import com.stripe.model.Customer;
 import com.stripe.model.PaymentIntent;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.POST;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
 import java.util.Map;
 
+
 @Path("/api/v1/payments")
+@Produces(MediaType.APPLICATION_JSON)
 public class PaymentResource {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PaymentResource.class);
@@ -24,47 +23,79 @@ public class PaymentResource {
     @Inject
     StripeService stripeService;
 
-    // DTO for the request body from the frontend
-    public static class CreatePaymentIntentRequest {
-        public String orderId;
-        public long amount;
-        public String currency;
-        public String customerEmail;
+    @POST
+    @Path("/create-customer")
+    public Response createCustomer(CreateCustomerRequest request) {
+        LOGGER.info("Received request to create customer for email: {}", request.getEmail());
+        if (request.getEmail() == null || request.getPaymentMethodId() == null) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\":\"email and paymentMethodId are required.\"}")
+                    .build();
+        }
+        try {
+            Customer customer = stripeService.createCustomer(request);
+            return Response.ok(new CreateCustomerResponse(customer.getId())).build();
+        } catch (Exception e) {
+            LOGGER.error("Failed to create customer", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity("{\"error\":\"" + e.getMessage() + "\"}")
+                    .build();
+        }
+    }
+
+    @POST
+    @Path("/get-or-create-customer")
+    public Response getOrCreateCustomer(Map<String, String> request) {
+        String email = request.get("email");
+        if (email == null) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("{\"error\":\"email is required.\"}").build();
+        }
+        try {
+            // We pass null for paymentMethodId as we are not attaching a card here, just ensuring customer exists
+            Customer customer = stripeService.getOrCreateCustomer(email, null);
+            return Response.ok(Map.of("customerId", customer.getId())).build();
+        } catch (Exception e) {
+            LOGGER.error("Failed to get or create customer", e);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity("{\"error\":\"" + e.getMessage() + "\"}")
+                    .build();
+        }
     }
 
     @POST
     @Path("/create-payment-intent")
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_JSON)
-    public Response createPaymentIntent(CreatePaymentIntentRequest request) {
-        if (request == null || request.orderId == null || request.amount <= 0 || request.currency == null) {
+    public Response createPaymentIntent(CreatePaymentRequest request) {
+        LOGGER.info("Received request to create payment intent for customer: {}", request.getCustomerId());
+        if (request.getCustomerId() == null || request.getAmount() == null || request.getCurrency() == null) {
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(Collections.singletonMap("error", "Missing required payment details: orderId, amount, currency."))
+                    .entity("{\"error\":\"customerId, amount, and currency are required.\"}")
                     .build();
         }
-
-        LOGGER.info("Received request to create PaymentIntent for orderId: {}", request.orderId);
         try {
-            PaymentIntent paymentIntent = stripeService.createPaymentIntent(
-                    request.amount,
-                    request.currency,
-                    request.orderId,
-                    request.customerEmail
-            );
-
-            // Return only the client_secret to the frontend
-            Map<String, String> responseData = Collections.singletonMap("clientSecret", paymentIntent.getClientSecret());
-            return Response.ok(responseData).build();
-        } catch (StripeException e) {
-            LOGGER.error("StripeException while creating PaymentIntent for orderId {}: {}", request.orderId, e.getMessage());
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity(Collections.singletonMap("error", "Failed to create payment intent: " + e.getMessage()))
-                    .build();
+            PaymentIntent paymentIntent = stripeService.createPaymentIntent(request);
+            CreatePaymentResponse paymentResponse = new CreatePaymentResponse(paymentIntent.getClientSecret(), paymentIntent.getStatus());
+            return Response.ok(paymentResponse).build();
         } catch (Exception e) {
-            LOGGER.error("Unexpected error while creating PaymentIntent for orderId {}: {}", request.orderId, e.getMessage(), e);
+            LOGGER.error("Failed to create payment intent for order: " + request.getOrderId(), e);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity(Collections.singletonMap("error", "An unexpected error occurred while creating the payment intent."))
+                    .entity("{\"error\":\"" + e.getMessage() + "\"}")
                     .build();
+        }
+    }
+
+    @POST
+    @Path("/stripe-events")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.TEXT_PLAIN)
+    public Response handleStripeWebhook(String payload, @HeaderParam("Stripe-Signature") String sigHeader) {
+        LOGGER.info("Stripe webhook event received.");
+        try {
+            stripeService.handleWebhookEvent(payload, sigHeader);
+            return Response.ok("Webhook processed").build();
+        } catch (BadRequestException e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Internal server error").build();
         }
     }
 }
