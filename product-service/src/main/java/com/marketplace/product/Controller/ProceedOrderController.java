@@ -5,7 +5,6 @@ import com.marketplace.product.DTO.PaymentConfirmationRequest;
 import com.marketplace.product.DTO.ProceedOrderDTO;
 import com.marketplace.product.Entity.ProceedOrder;
 import com.marketplace.product.Service.ProceedOrderService;
-import com.marketplace.product.contracts.Web3jClientProducer;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -21,14 +20,13 @@ public class ProceedOrderController {
 
     @Inject
     ProceedOrderService service;
-    @Inject
-    Web3jClientProducer web3jClientProducer;
+
 
     @POST
     public Response submitOrder(ProceedOrderDTO dto) {
         try {
-            CreatePaymentResponse paymentResponse = service.save(dto);
-            return Response.status(Response.Status.CREATED).entity(paymentResponse).build();
+            String newOrderId = service.save(dto);
+            return Response.status(Response.Status.CREATED).entity(Map.of("orderId", newOrderId)).build();
         } catch (Exception e) {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                     .entity("{\"error\": \"" + e.getMessage() + "\"}")

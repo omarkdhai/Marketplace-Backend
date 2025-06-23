@@ -31,7 +31,7 @@ public class ProceedOrderService {
     PaymentServiceClient paymentServiceClient;
 
 
-    public CreatePaymentResponse save(ProceedOrderDTO dto) {
+    public String save(ProceedOrderDTO dto) {
         ProceedOrder order = new ProceedOrder();
 
         order.userId = dto.userId;
@@ -46,11 +46,8 @@ public class ProceedOrderService {
         order.satisfaction = dto.satisfaction;
         order.paymentMethod = dto.paymentMethod;
         order.paymentStatus = "PENDING_PAYMENT";
-        StripCustomerCreateRequest requestCreateCustomer = new StripCustomerCreateRequest(dto.email);
-        Customer customer = paymentServiceClient.getOrCreateCustomerStrip(requestCreateCustomer);
-        dto.setStripeCustomerId(customer.getCustomerId());
-        CartItem cartItem = cartItemService.getCartByUserId(dto.userId);
 
+        CartItem cartItem = cartItemService.getCartByUserId(dto.userId);
 
         if (cartItem != null) {
             order.products = new ArrayList<>(cartItem.getProducts());
@@ -58,27 +55,35 @@ public class ProceedOrderService {
         } else {
             throw new IllegalStateException("Cannot create an order with an empty or non-existent cart.");
         }
-
-        long amountInCents = (long) (order.totalPrice * 100);
-
-        if (amountInCents < 50) {
-            throw new IllegalStateException("Order total is below the minimum chargeable amount of $0.50.");
-        }
         
         order.persist();
 
-        CreatePaymentRequest paymentRequest = new CreatePaymentRequest();
-        paymentRequest.orderId = order.id.toString();
-        paymentRequest.customerId = dto.getStripeCustomerId();
-        paymentRequest.amount = amountInCents;
-        paymentRequest.currency = "usd";
-
-        System.out.println("Calling payment-service for orderId: " + paymentRequest.orderId);
-        CreatePaymentResponse paymentResponse = paymentServiceClient.createPaymentIntent(paymentRequest);
-
         cartItemService.clearCart(dto.userId);
 
-        return paymentResponse;
+        return order.id.toString();
+    }
+
+    public boolean updateOrderStatusToPaid(String orderId, String gatewayTransactionId) {
+        ProceedOrder order = ProceedOrder.findById(new ObjectId(orderId));
+        if (order == null) {
+            System.err.println("Attempted to update a non-existent order: " + orderId);
+            return false;
+        }
+
+        // Verify the webhook
+        if ("PAID".equals(order.paymentStatus)) {
+            System.out.println("Order " + orderId + " is already marked as PAID. Ignoring event.");
+            return true;
+        }
+
+        System.out.println("Updating order " + orderId + " status to PAID in MongoDB.");
+        order.paymentStatus = "PAID";
+        order.setOrderStatus(true);
+        order.paymentGatewayTransactionId = gatewayTransactionId;
+        order.lastPaymentUpdate = new Date();
+
+        order.update();
+        return true;
     }
 
     public void fulfillOrder(String orderId) {
@@ -127,9 +132,9 @@ public class ProceedOrderService {
         if (order != null) {
             order.paymentMethod = paymentMethodUsed;
             if ("succeeded".equalsIgnoreCase(stripePaymentStatus) || "paid".equalsIgnoreCase(stripePaymentStatus)) {
-                order.paymentStatus = "PAID_VIA_" + paymentMethodUsed.toUpperCase(); // e.g., "PAID_VIA_STRIPE"
+                order.paymentStatus = "PAID_VIA_" + paymentMethodUsed.toUpperCase();
             } else {
-                order.paymentStatus = "PAYMENT_" + stripePaymentStatus.toUpperCase() + "_VIA_" + paymentMethodUsed.toUpperCase(); // e.g., "PAYMENT_FAILED_VIA_STRIPE"
+                order.paymentStatus = "PAYMENT_" + stripePaymentStatus.toUpperCase() + "_VIA_" + paymentMethodUsed.toUpperCase();
             }
             order.paymentGatewayTransactionId = gatewayTransactionId;
             order.lastPaymentUpdate = new Date();

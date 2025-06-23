@@ -8,6 +8,7 @@ import com.stripe.Stripe;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.*;
+import com.stripe.net.ApiResource;
 import com.stripe.net.Webhook;
 import com.stripe.param.CustomerCreateParams;
 import com.stripe.param.CustomerListParams;
@@ -16,7 +17,6 @@ import com.stripe.param.PaymentMethodAttachParams;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -133,6 +133,7 @@ public class StripeService {
         Event event;
         try {
             event = Webhook.constructEvent(payload, sigHeader, webhookSecret);
+
         } catch (SignatureVerificationException e) {
             LOGGER.error("Webhook error: Invalid signature.", e);
             throw new BadRequestException("Invalid Stripe signature.");
@@ -163,15 +164,13 @@ public class StripeService {
                 LOGGER.info("Payment for order_id: {} has succeeded. Calling order-service to fulfill.", orderId);
 
                 try {
-                    // Try to call the order-service
-                    Response response = orderServiceClient.fulfillOrder(orderId);
+                    Response response = orderServiceClient.fulfillOrder(orderId, paymentIntent.getId());
 
                     if (response.getStatus() >= 300) {
                         String errorMessage = "Order service responded with status " + response.getStatus();
                         LOGGER.error("Failed to fulfill order {}. {}", orderId, errorMessage);
                         saveFailedFulfillment(orderId, paymentIntent.getId(), errorMessage);
                     } else {
-                        // Success!
                         LOGGER.info("Successfully notified order-service for order {}. Status: {}", orderId, response.getStatus());
                     }
                 } catch (Exception e) {

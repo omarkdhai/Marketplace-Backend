@@ -38,7 +38,7 @@ public class FulfillmentRetryScheduler {
         for (FailedFulfillment job : jobsToRetry) {
             LOGGER.info("Retrying fulfillment for orderId: {}. Attempt #{}", job.orderId, job.attemptCount + 1);
             try {
-                Response response = orderServiceClient.fulfillOrder(job.orderId);
+                Response response = orderServiceClient.fulfillOrder(job.orderId, job.paymentIntentId);
 
                 if (response.getStatus() < 300) {
                     LOGGER.info("SUCCESS on retry for orderId: {}. Deleting job.", job.orderId);
