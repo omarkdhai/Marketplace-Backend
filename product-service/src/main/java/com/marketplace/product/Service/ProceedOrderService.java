@@ -119,6 +119,19 @@ public class ProceedOrderService {
         return false;
     }
 
+
+    public void updateBlockchainInfo(String mongoOrderId, Long blockchainOrderId, String txHash) {
+        ProceedOrder order = ProceedOrder.findById(new ObjectId(mongoOrderId));
+        if (order != null) {
+            order.blockchainOrderId = blockchainOrderId;
+            order.blockchainTransactionHash = txHash;
+            order.blockchainState = "Paid";
+            order.lastBlockchainUpdate = new Date();
+            order.update();
+            System.out.println("Blockchain info saved to DB for order " + mongoOrderId);
+        }
+    }
+
     @Transactional
     public boolean updatePaymentStatus(String backendOrderId, String paymentMethodUsed, String gatewayTransactionId, String stripePaymentStatus) {
         ObjectId mongoOrderId;
@@ -144,5 +157,47 @@ public class ProceedOrderService {
             return true;
         }
         return false;
+    }
+
+    public ProceedOrder getOrderWithNumericId(String mongoOrderId) {
+        try {
+            return ProceedOrder.findById(new ObjectId(mongoOrderId));
+        } catch (IllegalArgumentException e) {
+            System.err.println("Invalid MongoDB ObjectId format: " + mongoOrderId);
+            return null;
+        }
+    }
+
+    public boolean updateOrderStatusToShipped(String mongoOrderId, String trackingNumber, String txHash) {
+        ProceedOrder order = ProceedOrder.findById(new ObjectId(mongoOrderId));
+        if (order == null) {
+            System.err.println("Attempted to ship a non-existent order: " + mongoOrderId);
+            return false;
+        }
+
+        order.paymentStatus = "SHIPPED";
+        order.trackingNumber = trackingNumber;
+        order.blockchainTransactionHash = txHash;
+        order.blockchainState = "Shipped";
+        order.lastBlockchainUpdate = new Date();
+        order.update();
+        System.out.println("Order " + mongoOrderId + " status updated to SHIPPED in MongoDB.");
+        return true;
+    }
+
+    public boolean updateOrderStatusToCompleted(String mongoOrderId, String txHash) {
+        ProceedOrder order = ProceedOrder.findById(new ObjectId(mongoOrderId));
+        if (order == null) {
+            System.err.println("Attempted to complete a non-existent order: " + mongoOrderId);
+            return false;
+        }
+
+        order.paymentStatus = "COMPLETED";
+        order.blockchainTransactionHash = txHash;
+        order.blockchainState = "Completed";
+        order.lastBlockchainUpdate = new Date();
+        order.update();
+        System.out.println("Order " + mongoOrderId + " status updated to COMPLETED in MongoDB.");
+        return true;
     }
 }

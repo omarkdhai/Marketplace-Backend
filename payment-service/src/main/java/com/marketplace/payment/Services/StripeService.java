@@ -153,7 +153,7 @@ public class StripeService {
         switch (event.getType()) {
             case "payment_intent.succeeded":
                 PaymentIntent paymentIntent = (PaymentIntent) stripeObject;
-                LOGGER.info("✅ Payment succeeded for PaymentIntent: {}", paymentIntent.getId());
+                LOGGER.info("Payment succeeded for PaymentIntent: {}", paymentIntent.getId());
 
                 String orderId = paymentIntent.getMetadata().get("order_id");
                 if (orderId == null || orderId.isEmpty()) {
@@ -164,25 +164,26 @@ public class StripeService {
                 LOGGER.info("Payment for order_id: {} has succeeded. Calling order-service to fulfill.", orderId);
 
                 try {
+                    LOGGER.info("===> PRE-CALL CHECK: Attempting to call product-service for orderId [{}], txId [{}]", orderId, paymentIntent.getId());
                     Response response = orderServiceClient.fulfillOrder(orderId, paymentIntent.getId());
 
                     if (response.getStatus() >= 300) {
                         String errorMessage = "Order service responded with status " + response.getStatus();
                         LOGGER.error("Failed to fulfill order {}. {}", orderId, errorMessage);
                         saveFailedFulfillment(orderId, paymentIntent.getId(), errorMessage);
+
                     } else {
-                        LOGGER.info("Successfully notified order-service for order {}. Status: {}", orderId, response.getStatus());
-                    }
+                        LOGGER.info("======> SUCCESS: Notification to product-service for order {} was successful.", orderId);                    }
+
                 } catch (Exception e) {
-                    String errorMessage = "Error calling order-service: " + e.getMessage();
-                    LOGGER.error("CRITICAL: {} for order {}", errorMessage, orderId);
-                    saveFailedFulfillment(orderId, paymentIntent.getId(), errorMessage);
+                    LOGGER.error("!!!!!!!!!!!!!! CRITICAL: Exception while calling product-service for order {} !!!!!!!!!!!!!!", orderId, e);
+                    saveFailedFulfillment(orderId, paymentIntent.getId(), "Exception calling order-service: " + e.getMessage());
                 }
                 break;
 
             case "payment_intent.payment_failed":
                 PaymentIntent failedPaymentIntent = (PaymentIntent) stripeObject;
-                LOGGER.error("❌ Payment failed for PaymentIntent: {}. Reason: {}", failedPaymentIntent.getId(), failedPaymentIntent.getLastPaymentError().getMessage());
+                LOGGER.error("Payment failed for PaymentIntent: {}. Reason: {}", failedPaymentIntent.getId(), failedPaymentIntent.getLastPaymentError().getMessage());
                 break;
 
             default:

@@ -77,24 +77,14 @@
 
         <!-- Web3J -->
         <dependency>
-            <groupId>org.apache.camel.quarkus</groupId>
-            <artifactId>camel-quarkus-web3j</artifactId>
-            <version>3.23.0</version>
+            <groupId>org.web3j</groupId>
+            <artifactId>core</artifactId>
+            <version>4.10.0</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.camel.quarkus</groupId>
-            <artifactId>camel-quarkus-core</artifactId>
-            <version>3.23.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.camel.quarkus</groupId>
-            <artifactId>camel-quarkus-direct</artifactId>
-            <version>3.23.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.camel.quarkus</groupId>
-            <artifactId>camel-quarkus-bean</artifactId>
-            <version>3.23.0</version>
+            <groupId>org.web3j</groupId>
+            <artifactId>codegen</artifactId>
+            <version>4.10.0</version>
         </dependency>
 
         <!-- Lombok (not part of Quarkus BOM) -->
@@ -184,29 +174,28 @@
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>org.web3j</groupId>
-                <artifactId>web3j-maven-plugin</artifactId>
-                <version>4.8.7</version>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
                 <executions>
                     <execution>
-                        <id>generate-web3j-sources</id>
+                        <id>generate-web3j-wrapper</id>
+                        <!-- 'generate-sources' est la phase de build parfaite pour ça -->
                         <phase>generate-sources</phase>
                         <goals>
-                            <goal>generate-sources</goal>
+                            <goal>java</goal>
                         </goals>
                     </execution>
                 </executions>
                 <configuration>
-                    <packageName>com.marketplace.product.contracts</packageName>
-                    <outputDirectory>
-                        <java>${project.build.sourceDirectory}</java>
-                    </outputDirectory>
-                    <abiSourceFiles>
-                        <directory>${project.basedir}/src/main/resources/abi</directory>
-                        <includes>
-                            <include>MarketplaceEscrow.json</include> <!-- Look for the .json file -->
-                        </includes>
-                    </abiSourceFiles>
+                    <!-- On spécifie la classe Java à exécuter -->
+                    <mainClass>org.web3j.codegen.SolidityFunctionWrapperGenerator</mainClass>
+                    <arguments>
+                        <!-- Et on lui passe les mêmes arguments que dans la ligne de commande -->
+                        <argument>-a=${project.basedir}/src/main/resources/abi/OrderStatusTracker.json</argument>
+                        <argument>-o=${project.basedir}/src/main/java</argument>
+                        <argument>-p=com.marketplace.productservice.contracts</argument>
+                    </arguments>
                 </configuration>
             </plugin>
         </plugins>

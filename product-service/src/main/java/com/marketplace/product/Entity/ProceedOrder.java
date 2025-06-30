@@ -31,6 +31,7 @@ public class ProceedOrder extends PanacheMongoEntity {
     public String paymentMethod;
     public LocalDateTime createdAt = LocalDateTime.now();
     public Boolean orderStatus = false;
+    public String trackingNumber;
 
     public List<CartProduct> products = new ArrayList<>();
     public double totalPrice;
@@ -38,6 +39,9 @@ public class ProceedOrder extends PanacheMongoEntity {
     public String paymentStatus;
     public String paymentGatewayTransactionId;
     public Date lastPaymentUpdate;
+
+    public Long blockchainOrderId;
+    public String blockchainTransactionHash;
 
     public String blockchainTransactionId;
     public String buyerEthAddress;

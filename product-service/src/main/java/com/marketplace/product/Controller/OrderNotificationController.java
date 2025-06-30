@@ -1,63 +1,69 @@
 package com.marketplace.product.Controller;
 
+import com.marketplace.product.Service.BlockchainService;
 import com.marketplace.product.Service.ProceedOrderService;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.POST;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.PathParam;
-import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Response;
-import org.apache.camel.FluentProducerTemplate;
+import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 import java.math.BigInteger;
+import java.util.concurrent.CompletableFuture;
 
 @Path("/internal/orders")
 public class OrderNotificationController {
 
     @Inject
-    FluentProducerTemplate producerTemplate;
+    ProceedOrderService proceedOrderService;
 
     @Inject
-    ProceedOrderService proceedOrderService;
+    BlockchainService blockchainService;
 
     @POST
     @Path("/{orderId}/payment-confirmed")
     public Response onPaymentConfirmed(
-            @PathParam("orderId") String orderId,
+            @PathParam("orderId") String mongoOrderId,
             @QueryParam("txId") String stripeTransactionId) {
 
-        System.out.println("REAL FLOW: Received payment confirmation for order ID: " + orderId);
+        System.out.println("✅ REAL FLOW: Received payment confirmation for Mongo order ID: " + mongoOrderId);
 
-        // Update db
-        boolean dbUpdateSuccess = proceedOrderService.updateOrderStatusToPaid(orderId, stripeTransactionId);
-
+        // Étape 1: Mettre à jour la base de données interne.
+        boolean dbUpdateSuccess = proceedOrderService.updateOrderStatusToPaid(mongoOrderId, stripeTransactionId);
         if (!dbUpdateSuccess) {
-            return Response.status(Response.Status.NOT_FOUND).entity("Order not found in DB: " + orderId).build();
+            return Response.status(Response.Status.NOT_FOUND).entity("Order not found in DB: " + mongoOrderId).build();
         }
+        System.out.println("✅ MongoDB status updated to PAID for order " + mongoOrderId);
 
-        System.out.println("MongoDB status updated to PAID for order " + orderId);
 
-        // Update Blockchain
+        // Étape 2: Déclencher la mise à jour de la blockchain.
         try {
-            Long orderIdAsLong = Long.parseLong(orderId);
-            System.out.println("Triggering blockchain update for order: " + orderId);
-            producerTemplate
-                    .to("direct:markAsPaid")
-                    .withBody(BigInteger.valueOf(orderIdAsLong))
-                    .send();
-            System.out.println("REAL FLOW: Blockchain update successfully queued for order: " + orderId);
+            long numericRepresentation = Math.abs((long) mongoOrderId.hashCode());
+            System.out.println("Triggering blockchain update for numeric representation [" + numericRepresentation + "]");
 
-            return Response.ok().entity("{\"status\":\"db_and_blockchain_updates_queued\"}").build();
+            CompletableFuture<TransactionReceipt> futureReceipt = blockchainService.markOrderAsPaid(BigInteger.valueOf(numericRepresentation));
 
-        } catch (NumberFormatException e) {
-            System.err.println("CRITICAL: Order ID " + orderId + " is not a valid number for blockchain processing.");
-            return Response.status(Response.Status.BAD_REQUEST).entity("Invalid Order ID format for blockchain.").build();
+            // Étape 3 (Asynchrone): Une fois que la transaction est confirmée, on exécute ce code.
+            futureReceipt.thenAccept(receipt -> {
+                // Ce code s'exécute dans un autre thread, une fois que la blockchain a répondu.
+                System.out.println("✅ Blockchain transaction confirmed! TxHash: " + receipt.getTransactionHash());
+                // On sauvegarde le hash de la transaction dans notre base de données.
+                proceedOrderService.updateBlockchainInfo(mongoOrderId, numericRepresentation, receipt.getTransactionHash());
+            }).exceptionally(ex -> {
+                // Ce code s'exécute si l'envoi à la blockchain échoue.
+                System.err.println("!!!!!!!!!! CRITICAL: Blockchain transaction FAILED for order " + mongoOrderId + " !!!!!!!!!!");
+                ex.printStackTrace();
+                return null; // Il faut retourner une valeur par défaut dans exceptionally.
+            });
+
+            // IMPORTANT: On répond IMMÉDIATEMENT au payment-service.
+            // On ne bloque pas la réponse en attendant que la transaction soit minée.
+            System.out.println("✅ REAL FLOW: Blockchain update has been sent (asynchronously). Responding OK to payment-service.");
+            return Response.ok("{\"status\":\"db_updated_and_blockchain_tx_sent\"}").build();
+
         } catch (Exception e) {
-            String errorMessage = "CRITICAL: DB was updated, but failed to queue blockchain update for order: " + orderId;
-            System.err.println(errorMessage + ". Error: " + e.getMessage());
-
-            //Alert
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(errorMessage).build();
+            System.err.println("CRITICAL: DB was updated, but failed to send blockchain transaction for order: " + mongoOrderId);
+            e.printStackTrace();
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(e.getMessage()).build();
         }
     }
 }
