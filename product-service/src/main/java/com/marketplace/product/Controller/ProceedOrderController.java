@@ -1,5 +1,6 @@
 package com.marketplace.product.Controller;
 
+import com.marketplace.product.Clients.CreatePaymentResponse;
 import com.marketplace.product.DTO.BlockchainOrderStateDTO;
 import com.marketplace.product.DTO.PaymentConfirmationRequest;
 import com.marketplace.product.DTO.ProceedOrderDTO;
@@ -33,9 +34,11 @@ public class ProceedOrderController {
     @POST
     public Response submitOrder(ProceedOrderDTO dto) {
         try {
-            String newOrderId = service.save(dto);
-            return Response.status(Response.Status.CREATED).entity(Map.of("orderId", newOrderId)).build();
+            CreatePaymentResponse paymentResponse = service.saveAndInitiatePayment(dto);
+            return Response.status(Response.Status.CREATED).entity(paymentResponse).build();
         } catch (Exception e) {
+            System.err.println("Error during order submission and payment initiation: " + e.getMessage());
+            e.printStackTrace();
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                     .entity("{\"error\": \"" + e.getMessage() + "\"}")
                     .build();
@@ -73,18 +76,6 @@ public class ProceedOrderController {
         }
     }
 
-    @PUT
-    @Path("/{id}/toggle-status")
-    public Response toggleOrderStatus(@PathParam("id") String id) {
-        boolean success = service.toggleOrderStatus(id);
-        if (success) {
-            return Response.ok().build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND)
-                    .entity("Order not found")
-                    .build();
-        }
-    }
 
     @POST
     @Path("/{orderId}/confirm-payment")
@@ -134,7 +125,7 @@ public class ProceedOrderController {
         // Call the BlockchainService
         try {
             // We now pass the GENERATED trackingNumber to the service.
-            CompletableFuture<TransactionReceipt> futureReceipt = blockchainService.markOrderAsShipped(blockchainOrderId, trackingNumber);
+            CompletableFuture<TransactionReceipt> futureReceipt = blockchainService.markAsShipped(blockchainOrderId, trackingNumber);
 
             // Handle the confirmation (this logic remains the same, but now uses the generated number).
             futureReceipt.thenAccept(receipt -> {
@@ -177,7 +168,7 @@ public class ProceedOrderController {
                 System.out.println("✅ 'confirmDelivered' transaction confirmed! TxHash: " + receipt.getTransactionHash());
                 service.updateOrderStatusToCompleted(mongoOrderId, receipt.getTransactionHash());
             }).exceptionally(ex -> {
-                System.err.println("!!!!!!!!!! CRITICAL: 'confirmDelivered' transaction FAILED for order " + mongoOrderId + " !!!!!!!!!!");
+                System.err.println("CRITICAL: 'confirmDelivered' transaction FAILED for order " + mongoOrderId + " !!!!!!!!!!");
                 ex.printStackTrace();
                 return null;
             });
@@ -199,21 +190,111 @@ public class ProceedOrderController {
 
         ProceedOrder order = service.getOrderWithNumericId(mongoOrderId);
         if (order == null || order.blockchainOrderId == null) {
-            return Response.status(Response.Status.NOT_FOUND).entity("Order or its blockchain ID not found.").build();
+            return Response.status(Response.Status.NOT_FOUND).entity("Order or its blockchain ID not found in local DB.").build();
         }
         BigInteger blockchainOrderId = BigInteger.valueOf(order.blockchainOrderId);
 
         try {
             OrderStatusTracker.Order contractOrder = blockchainService.getOrderStateFromBlockchain(blockchainOrderId).get();
 
-            BlockchainOrderStateDTO responseDto = BlockchainOrderStateDTO.fromContractOrder(contractOrder);
+            if (contractOrder == null || contractOrder.id.equals(BigInteger.ZERO)) {
+                System.out.println("   -> Blockchain returned an empty order. The order does not exist at this ID on-chain.");
+                return Response.status(Response.Status.NOT_FOUND).entity("Order not found on the blockchain for ID: " + blockchainOrderId).build();
+            }
 
+            System.out.println("   -> Blockchain returned a valid order. Mapping to DTO.");
+            BlockchainOrderStateDTO responseDto = BlockchainOrderStateDTO.fromContractOrder(contractOrder);
             return Response.ok(responseDto).build();
 
         } catch (Exception e) {
-            System.err.println("CRITICAL: Failed to read order state from blockchain for order: " + mongoOrderId);
+            System.err.println("CRITICAL: An unexpected exception occurred while reading order state from blockchain for order: " + mongoOrderId);
             e.printStackTrace();
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Failed to retrieve data from the blockchain.").build();
         }
     }
+
+    @GET
+    @Path("/by-blockchain-id/{blockchainOrderId}")
+    public Response getBlockchainStatusByNumericId(@PathParam("blockchainOrderId") Long blockchainOrderId) {
+        System.out.println("✅ Received request for blockchain status using NUMERIC ID: " + blockchainOrderId);
+
+        return queryBlockchainAndBuildResponse(BigInteger.valueOf(blockchainOrderId));
+    }
+
+    private Response queryBlockchainAndBuildResponse(BigInteger numericId) {
+        try {
+            OrderStatusTracker.Order contractOrder = blockchainService.getOrderStateFromBlockchain(numericId).get();
+
+            if (contractOrder == null || contractOrder.id.equals(BigInteger.ZERO)) {
+                return Response.status(Response.Status.NOT_FOUND).entity("Order not found on the blockchain for ID: " + numericId).build();
+            }
+
+            BlockchainOrderStateDTO responseDto = BlockchainOrderStateDTO.fromContractOrder(contractOrder);
+            return Response.ok(responseDto).build();
+
+        } catch (Exception e) {
+            System.err.println("CRITICAL: Failed to read order state from blockchain for numeric ID: " + numericId);
+            e.printStackTrace();
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Failed to retrieve data from the blockchain.").build();
+        }
+    }
+
+    @POST
+    @Path("/{mongoOrderId}/dispute")
+    public Response openDispute(@PathParam("mongoOrderId") String mongoOrderId) {
+        System.out.println("✅ Received request to open a dispute for order: " + mongoOrderId);
+
+        ProceedOrder order = service.findByMongoId(mongoOrderId);
+        if (order == null || order.blockchainOrderId == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        BigInteger blockchainOrderId = BigInteger.valueOf(order.blockchainOrderId);
+
+        try {
+            CompletableFuture<TransactionReceipt> futureReceipt = blockchainService.openDispute(blockchainOrderId);
+
+            futureReceipt.thenAccept(receipt -> {
+                System.out.println("✅ 'openDispute' transaction confirmed! TxHash: " + receipt.getTransactionHash());
+                service.updateOrderStatusToDisputed(mongoOrderId, receipt.getTransactionHash());
+            }).exceptionally(ex -> {
+                System.err.println("!CRITICAL: 'openDispute' transaction FAILED for order " + mongoOrderId);
+                ex.printStackTrace();
+                return null;
+            });
+
+            return Response.accepted("{\"status\":\"dispute_opening_sent\"}").build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @POST
+    @Path("/{mongoOrderId}/resolve-dispute")
+    public Response resolveDispute(@PathParam("mongoOrderId") String mongoOrderId, @QueryParam("refund") boolean wasRefunded) {
+        System.out.println("✅ Received admin request to resolve dispute for order: " + mongoOrderId + ", with refund: " + wasRefunded);
+
+        ProceedOrder order = service.findByMongoId(mongoOrderId);
+        if (order == null || order.blockchainOrderId == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        BigInteger blockchainOrderId = BigInteger.valueOf(order.blockchainOrderId);
+
+        try {
+            CompletableFuture<TransactionReceipt> futureReceipt = blockchainService.resolveDispute(blockchainOrderId, wasRefunded);
+
+            futureReceipt.thenAccept(receipt -> {
+                System.out.println("✅ 'resolveDispute' transaction confirmed! TxHash: " + receipt.getTransactionHash());
+                service.updateOrderStatusAfterDispute(mongoOrderId, wasRefunded, receipt.getTransactionHash());
+            }).exceptionally(ex -> {
+                System.err.println("CRITICAL: 'resolveDispute' transaction FAILED for order " + mongoOrderId);
+                ex.printStackTrace();
+                return null;
+            });
+
+            return Response.accepted("{\"status\":\"dispute_resolution_sent\"}").build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
 }

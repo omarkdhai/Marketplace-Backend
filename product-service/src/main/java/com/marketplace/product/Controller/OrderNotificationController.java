@@ -1,5 +1,6 @@
 package com.marketplace.product.Controller;
 
+import com.marketplace.product.Entity.ProceedOrder;
 import com.marketplace.product.Service.BlockchainService;
 import com.marketplace.product.Service.ProceedOrderService;
 import jakarta.inject.Inject;
@@ -19,6 +20,7 @@ public class OrderNotificationController {
     @Inject
     BlockchainService blockchainService;
 
+
     @POST
     @Path("/{orderId}/payment-confirmed")
     public Response onPaymentConfirmed(
@@ -27,37 +29,46 @@ public class OrderNotificationController {
 
         System.out.println("✅ REAL FLOW: Received payment confirmation for Mongo order ID: " + mongoOrderId);
 
-        // Étape 1: Mettre à jour la base de données interne.
         boolean dbUpdateSuccess = proceedOrderService.updateOrderStatusToPaid(mongoOrderId, stripeTransactionId);
         if (!dbUpdateSuccess) {
             return Response.status(Response.Status.NOT_FOUND).entity("Order not found in DB: " + mongoOrderId).build();
         }
         System.out.println("✅ MongoDB status updated to PAID for order " + mongoOrderId);
 
-
-        // Étape 2: Déclencher la mise à jour de la blockchain.
         try {
-            long numericRepresentation = Math.abs((long) mongoOrderId.hashCode());
-            System.out.println("Triggering blockchain update for numeric representation [" + numericRepresentation + "]");
+            ProceedOrder order = proceedOrderService.getOrderWithNumericId(mongoOrderId);
+            if (order == null || order.blockchainOrderId == null) {
+                return Response.status(Response.Status.NOT_FOUND).entity("Order or its blockchain ID not found after update.").build();
+            }
 
-            CompletableFuture<TransactionReceipt> futureReceipt = blockchainService.markOrderAsPaid(BigInteger.valueOf(numericRepresentation));
+            long blockchainOrderId = order.blockchainOrderId;
+            System.out.println("Triggering blockchain update using pre-generated numeric ID [" + blockchainOrderId + "]");
 
-            // Étape 3 (Asynchrone): Une fois que la transaction est confirmée, on exécute ce code.
+            String buyerAddress = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+            String sellerAddress = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+
+            String itemId = order.products.isEmpty() ? "default-item" : order.products.get(0).getProduct().getId().toString();
+
+            System.out.println("Triggering blockchain 'createAndPayOrder' for numeric representation [" + blockchainOrderId + "]");
+
+            CompletableFuture<TransactionReceipt> futureReceipt = blockchainService.createAndPayOrderOnBlockchain(
+                    BigInteger.valueOf(blockchainOrderId),
+                    buyerAddress,
+                    sellerAddress,
+                    itemId,
+                    stripeTransactionId
+            );
+
             futureReceipt.thenAccept(receipt -> {
-                // Ce code s'exécute dans un autre thread, une fois que la blockchain a répondu.
-                System.out.println("✅ Blockchain transaction confirmed! TxHash: " + receipt.getTransactionHash());
-                // On sauvegarde le hash de la transaction dans notre base de données.
-                proceedOrderService.updateBlockchainInfo(mongoOrderId, numericRepresentation, receipt.getTransactionHash());
+                System.out.println("✅ Blockchain transaction 'createAndPayOrder' confirmed! TxHash: " + receipt.getTransactionHash());
+                proceedOrderService.updateBlockchainInfo(mongoOrderId, blockchainOrderId, receipt.getTransactionHash());
             }).exceptionally(ex -> {
-                // Ce code s'exécute si l'envoi à la blockchain échoue.
-                System.err.println("!!!!!!!!!! CRITICAL: Blockchain transaction FAILED for order " + mongoOrderId + " !!!!!!!!!!");
+                System.err.println("CRITICAL: Blockchain transaction 'createAndPayOrder' FAILED for order " + mongoOrderId + " !!!!!!!!!!");
                 ex.printStackTrace();
-                return null; // Il faut retourner une valeur par défaut dans exceptionally.
+                return null;
             });
 
-            // IMPORTANT: On répond IMMÉDIATEMENT au payment-service.
-            // On ne bloque pas la réponse en attendant que la transaction soit minée.
-            System.out.println("✅ REAL FLOW: Blockchain update has been sent (asynchronously). Responding OK to payment-service.");
+            System.out.println("✅ REAL FLOW: 'createAndPayOrder' transaction has been sent (asynchronously). Responding OK.");
             return Response.ok("{\"status\":\"db_updated_and_blockchain_tx_sent\"}").build();
 
         } catch (Exception e) {

@@ -24,12 +24,12 @@ public class CartItem extends PanacheMongoEntity {
 
     public double totalPrice;
 
-    public BigInteger blockchainTransactionId; // The ID from the smart contract's TransactionCreated event
+    public BigInteger blockchainTransactionId;
     public String buyerEthAddress;
     public String sellerEthAddress;
-    public BigInteger blockchainRegisteredAmount; // The amount (fiat reference) registered in the smart contract
-    public String blockchainState; // "CREATED", "FUNDED_SYMBOLICALLY", "ITEM_SENT"
-    public String paymentStatus; // "PENDING_BLOCKCHAIN_CONFIRMATION", "PAYMENT_AUTHORIZED_OFFCHAIN"
+    public BigInteger blockchainRegisteredAmount;
+    public String blockchainState;
+    public String paymentStatus;
 
 
     public void updateTotalPrice() {

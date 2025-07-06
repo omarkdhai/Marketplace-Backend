@@ -173,6 +173,7 @@
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
+            <!--
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
@@ -180,7 +181,6 @@
                 <executions>
                     <execution>
                         <id>generate-web3j-wrapper</id>
-                        <!-- 'generate-sources' est la phase de build parfaite pour ça -->
                         <phase>generate-sources</phase>
                         <goals>
                             <goal>java</goal>
@@ -188,16 +188,15 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <!-- On spécifie la classe Java à exécuter -->
                     <mainClass>org.web3j.codegen.SolidityFunctionWrapperGenerator</mainClass>
                     <arguments>
-                        <!-- Et on lui passe les mêmes arguments que dans la ligne de commande -->
                         <argument>-a=${project.basedir}/src/main/resources/abi/OrderStatusTracker.json</argument>
                         <argument>-o=${project.basedir}/src/main/java</argument>
                         <argument>-p=com.marketplace.productservice.contracts</argument>
                     </arguments>
                 </configuration>
             </plugin>
+            -->
         </plugins>
     </build>
 

@@ -26,6 +26,8 @@ public class BlockchainService {
     String contractAddress;
 
     private OrderStatusTracker contract;
+    private Web3j web3j;
+
 
     @PostConstruct
     void init() {
@@ -36,7 +38,7 @@ public class BlockchainService {
         System.out.println("======================================================");
 
         // Crée la connexion au noeud Hardhat
-        Web3j web3j = Web3j.build(new HttpService(this.rpcUrl));
+        web3j = Web3j.build(new HttpService(this.rpcUrl));
 
         // Charge le portefeuille de notre Oracle à partir de sa clé privée
         Credentials credentials = Credentials.create(this.privateKey);
@@ -60,13 +62,14 @@ public class BlockchainService {
         }
     }
 
-    public CompletableFuture<TransactionReceipt> markOrderAsPaid(BigInteger numericOrderId) {
+    public CompletableFuture<TransactionReceipt> createAndPayOrderOnBlockchain(
+            BigInteger numericOrderId, String buyerAddress, String sellerAddress, String itemId, String stripeId) {
 
-        System.out.println("===> [BlockchainService] Calling smart contract function 'markAsPaid' for numeric ID: " + numericOrderId);
-        return this.contract.markAsPaid(numericOrderId).sendAsync();
+        System.out.println("===> [BlockchainService] Calling 'createAndPayOrder'...");
+        return this.contract.createAndPayOrder(numericOrderId, buyerAddress, sellerAddress, itemId, stripeId).sendAsync();
     }
 
-    public CompletableFuture<TransactionReceipt> markOrderAsShipped(BigInteger numericOrderId, String trackingNumber) {
+    public CompletableFuture<TransactionReceipt> markAsShipped(BigInteger numericOrderId, String trackingNumber) {
 
         System.out.println("===> [BlockchainService] Calling smart contract function 'markAsShipped' for numeric ID: " + numericOrderId);
         return this.contract.markAsShipped(numericOrderId, trackingNumber).sendAsync();
@@ -82,5 +85,17 @@ public class BlockchainService {
 
         System.out.println("===> [BlockchainService] Calling READ-ONLY function 'getOrder' for numeric ID: " + numericOrderId);
         return this.contract.getOrder(numericOrderId).sendAsync();
+    }
+
+    public CompletableFuture<TransactionReceipt> openDispute(BigInteger numericOrderId) {
+
+        System.out.println("===> [BlockchainService] Calling 'openDispute' for numeric ID: " + numericOrderId);
+        return this.contract.openDispute(numericOrderId).sendAsync();
+    }
+
+    public CompletableFuture<TransactionReceipt> resolveDispute(BigInteger numericOrderId, boolean wasRefunded) {
+
+        System.out.println("===> [BlockchainService] Calling 'resolveDispute' for numeric ID: " + numericOrderId + " with refund: " + wasRefunded);
+        return this.contract.resolveDispute(numericOrderId, wasRefunded).sendAsync();
     }
 }

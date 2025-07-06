@@ -1,5 +1,6 @@
 package com.marketplace.productservice.contracts;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.reactivex.Flowable;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -40,6 +41,11 @@ import org.web3j.tx.gas.ContractGasProvider;
  * <p>Generated with web3j version 4.10.0.
  */
 @SuppressWarnings("rawtypes")
+@RegisterForReflection(targets = {
+        OrderStatusTracker.Order.class,
+        OrderStatusTracker.OrderCreatedEventResponse.class,
+        OrderStatusTracker.OrderStatusChangedEventResponse.class
+})
 public class OrderStatusTracker extends Contract {
     public static final String BINARY = "Bin file was not provided";
 
@@ -47,7 +53,7 @@ public class OrderStatusTracker extends Contract {
 
     public static final String FUNC_CONFIRMDELIVERED = "confirmDelivered";
 
-    public static final String FUNC_CREATEORDER = "createOrder";
+    public static final String FUNC_CREATEANDPAYORDER = "createAndPayOrder";
 
     public static final String FUNC_GETORDER = "getOrder";
 
@@ -179,10 +185,12 @@ public class OrderStatusTracker extends Contract {
         return executeRemoteCallTransaction(function);
     }
 
-    public RemoteFunctionCall<TransactionReceipt> createOrder(String _seller, String _itemId, String _stripePaymentIntentId) {
+    public RemoteFunctionCall<TransactionReceipt> createAndPayOrder(BigInteger _orderId, String _buyer, String _seller, String _itemId, String _stripePaymentIntentId) {
         final Function function = new Function(
-                FUNC_CREATEORDER, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.Address(160, _seller), 
+                FUNC_CREATEANDPAYORDER, 
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Uint256(_orderId), 
+                new org.web3j.abi.datatypes.Address(160, _buyer), 
+                new org.web3j.abi.datatypes.Address(160, _seller), 
                 new org.web3j.abi.datatypes.Utf8String(_itemId), 
                 new org.web3j.abi.datatypes.Utf8String(_stripePaymentIntentId)), 
                 Collections.<TypeReference<?>>emptyList());
