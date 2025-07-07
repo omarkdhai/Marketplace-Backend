@@ -25,6 +25,9 @@ public class ProceedOrderService {
     CartItemService cartItemService;
 
     @Inject
+    SignatureVerificationService signatureVerifier;
+
+    @Inject
     @RestClient
     PaymentServiceClient paymentServiceClient;
 
@@ -58,11 +61,33 @@ public class ProceedOrderService {
             throw new IllegalStateException("Cannot create an order with an empty or non-existent cart.");
         }
 
+        String expectedMessage = String.format(
+                "I am signing this message to confirm my intent to place an order for a total of %.2f TND.",
+                cartItem.getTotalPrice()
+        );
+
+        System.out.println("--- SIGNATURE VERIFICATION DEBUG ---");
+        System.out.println("Signer Address from DTO: [" + dto.getSignerAddress() + "]");
+        System.out.println("Signature from DTO:      [" + dto.getSignature() + "]");
+        System.out.println("Message being verified:  [" + expectedMessage + "]");
+        System.out.println("------------------------------------");
+
+        boolean isSignatureValid = signatureVerifier.verifySignature(
+                dto.getSignature(),
+                dto.getSignerAddress(),
+                expectedMessage
+        );
+
+        if (!isSignatureValid) {
+            throw new SecurityException("Invalid signature provided. Order rejected.");
+        }
+        System.out.println("Signature successfully verified for address: " + dto.getSignerAddress());
+
         order.persist();
 
-        long amountInCents = (long) (order.totalPrice * 100);
-        if (amountInCents < 50) {
-            throw new IllegalStateException("Order total is below the minimum chargeable amount of $0.50.");
+        long amountInCents = (long) (order.totalPrice * 1000);
+        if (amountInCents < 1500) {
+            throw new IllegalStateException("Order total is below the minimum chargeable amount of 1.500 TND.");
         }
 
         CreatePaymentRequest paymentRequest = new CreatePaymentRequest();

@@ -50,16 +50,16 @@ public class BlockchainService {
         this.contract = OrderStatusTracker.load(this.contractAddress, web3j, credentials, gasProvider);
 
         // On vérifie que le contrat est bien chargé et qu'on peut communiquer avec lui
-        try {
+        /*try {
             boolean isValid = this.contract.isValid();
             if (isValid) {
                 System.out.println("======> BlockchainService INITIALIZED. Contract connection is valid.");
             } else {
-                System.err.println("!!!!!!!!!! CRITICAL: BlockchainService failed to connect to a valid contract at " + this.contractAddress);
+                System.err.println("CRITICAL: BlockchainService failed to connect to a valid contract at " + this.contractAddress);
             }
         } catch (Exception e) {
-            System.err.println("!!!!!!!!!! CRITICAL: Exception during contract validation: " + e.getMessage());
-        }
+            System.err.println("CRITICAL: Exception during contract validation: " + e.getMessage());
+        }*/
     }
 
     public CompletableFuture<TransactionReceipt> createAndPayOrderOnBlockchain(

@@ -35,6 +35,7 @@ public class ProceedOrder extends PanacheMongoEntity {
 
     public List<CartProduct> products = new ArrayList<>();
     public double totalPrice;
+    private String currency;
 
     public String paymentStatus;
     public String paymentGatewayTransactionId;
@@ -42,6 +43,9 @@ public class ProceedOrder extends PanacheMongoEntity {
 
     public Long blockchainOrderId;
     public String blockchainTransactionHash;
+
+    public String signature;
+    public String signerAddress;
 
     public String blockchainTransactionId;
     public String buyerEthAddress;

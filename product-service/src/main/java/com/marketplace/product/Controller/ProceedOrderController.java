@@ -36,11 +36,21 @@ public class ProceedOrderController {
         try {
             CreatePaymentResponse paymentResponse = service.saveAndInitiatePayment(dto);
             return Response.status(Response.Status.CREATED).entity(paymentResponse).build();
+        } catch (SecurityException e) {
+            System.err.println("Signature verification failed: " + e.getMessage());
+            return Response.status(Response.Status.UNAUTHORIZED)
+                    .entity("{\"error\": \"" + e.getMessage() + "\"}")
+                    .build();
+        } catch (IllegalStateException e) {
+            System.err.println("Business logic error: " + e.getMessage());
+            return Response.status(Response.Status.BAD_REQUEST) // 400 Bad Request
+                    .entity("{\"error\": \"" + e.getMessage() + "\"}")
+                    .build();
         } catch (Exception e) {
             System.err.println("Error during order submission and payment initiation: " + e.getMessage());
             e.printStackTrace();
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("{\"error\": \"" + e.getMessage() + "\"}")
+                    .entity("{\"error\": \"An unexpected internal error occurred.\"}")
                     .build();
         }
     }

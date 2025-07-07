@@ -1,12 +1,16 @@
 package com.marketplace.product.DTO;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.Date;
 
 @Getter
 @Setter
+@AllArgsConstructor
+@NoArgsConstructor
 public class ProceedOrderDTO {
 
     public String userId;
@@ -29,4 +33,7 @@ public class ProceedOrderDTO {
     public String blockchainState;
     public Date lastBlockchainUpdate;
     public Boolean orderStatus = false;
+    private String signature;
+    private String signerAddress;
+    private String currency;
 }

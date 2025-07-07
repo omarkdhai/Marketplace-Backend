@@ -51,7 +51,6 @@ public class PaymentResource {
             return Response.status(Response.Status.BAD_REQUEST).entity("{\"error\":\"email is required.\"}").build();
         }
         try {
-            // We pass null for paymentMethodId as we are not attaching a card here, just ensuring customer exists
             Customer customer = stripeService.getOrCreateCustomer(email, null);
             return Response.ok(Map.of("customerId", customer.getId())).build();
         } catch (Exception e) {
