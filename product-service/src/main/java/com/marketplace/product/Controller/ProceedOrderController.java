@@ -1,12 +1,11 @@
 package com.marketplace.product.Controller;
 
 import com.marketplace.product.Clients.CreatePaymentResponse;
-import com.marketplace.product.DTO.BlockchainOrderStateDTO;
-import com.marketplace.product.DTO.PaymentConfirmationRequest;
-import com.marketplace.product.DTO.ProceedOrderDTO;
+import com.marketplace.product.DTO.*;
 import com.marketplace.product.Entity.ProceedOrder;
 import com.marketplace.product.Service.BlockchainService;
 import com.marketplace.product.Service.ProceedOrderService;
+import com.marketplace.product.Service.SignatureVerificationService;
 import com.marketplace.productservice.contracts.OrderStatusTracker;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -15,6 +14,8 @@ import jakarta.ws.rs.core.Response;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -29,6 +30,9 @@ public class ProceedOrderController {
 
     @Inject
     BlockchainService blockchainService;
+
+    @Inject
+    SignatureVerificationService signatureVerifier;
 
 
     @POST
@@ -118,38 +122,63 @@ public class ProceedOrderController {
 
     @POST
     @Path("/{mongoOrderId}/ship")
-    public Response shipOrder(@PathParam("mongoOrderId") String mongoOrderId) {
+    public Response shipOrder(@PathParam("mongoOrderId") String mongoOrderId, ShipmentConfirmationRequest request) {
 
         System.out.println("✅ Received request to ship order: " + mongoOrderId);
 
-        String trackingNumber = "TRK-" + mongoOrderId.substring(mongoOrderId.length() - 6).toUpperCase() + "-" + System.currentTimeMillis();
-        System.out.println("   -> Automatically generated tracking number: " + trackingNumber);
+        // --- START OF CORRECTION ---
 
-        // Get the order to find its numeric blockchain ID (this logic remains the same).
-        ProceedOrder order = service.getOrderWithNumericId(mongoOrderId);
+        // 1. On récupère le trackingNumber depuis la requête du client.
+        String trackingNumber = request.getTrackingNumber();
+        if (trackingNumber == null || trackingNumber.isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("{\"error\":\"Tracking number is missing from the request.\"}").build();
+        }
+
+        // 2. On reconstruit le message attendu en utilisant les informations fournies.
+        String expectedMessage = "I confirm the shipment of order " + mongoOrderId + " with tracking number " + trackingNumber;
+
+        System.out.println("--- Verifying Signature ---");
+        System.out.println("   - Expected Message: " + expectedMessage);
+        System.out.println("   - Received Signature: " + request.getSignature());
+        System.out.println("   - Received Signer Address: " + request.getSignerAddress());
+
+        // 3. On vérifie la signature.
+        boolean isSignatureValid = signatureVerifier.verifySignature(
+                request.getSignature(),
+                request.getSignerAddress(),
+                expectedMessage
+        );
+
+        // --- END OF CORRECTION ---
+
+        if (!isSignatureValid) {
+            return Response.status(Response.Status.UNAUTHORIZED).entity("{\"error\":\"Invalid signature for shipping confirmation.\"}").build();
+        }
+
+        System.out.println("✅ Shipping signature verified for order: " + mongoOrderId);
+
+        // La suite de la logique ne change pas, car elle utilise maintenant le 'trackingNumber'
+        // qui vient de la requête et a été validé par la signature.
+
+        ProceedOrder order = service.findByMongoId(mongoOrderId); // On utilise findByMongoId pour la clarté
         if (order == null || order.blockchainOrderId == null) {
             return Response.status(Response.Status.NOT_FOUND).entity("Order or its blockchain ID not found.").build();
         }
         BigInteger blockchainOrderId = BigInteger.valueOf(order.blockchainOrderId);
 
-        // Call the BlockchainService
         try {
-            // We now pass the GENERATED trackingNumber to the service.
             CompletableFuture<TransactionReceipt> futureReceipt = blockchainService.markAsShipped(blockchainOrderId, trackingNumber);
 
-            // Handle the confirmation (this logic remains the same, but now uses the generated number).
             futureReceipt.thenAccept(receipt -> {
                 System.out.println("✅ 'markAsShipped' transaction confirmed! TxHash: " + receipt.getTransactionHash());
-                // Update the DB with the new status, hash, and the GENERATED tracking number.
                 service.updateOrderStatusToShipped(mongoOrderId, trackingNumber, receipt.getTransactionHash());
             }).exceptionally(ex -> {
-                System.err.println("!!!!!!!!!! CRITICAL: 'markAsShipped' transaction FAILED for order " + mongoOrderId + " !!!!!!!!!!");
+                System.err.println("CRITICAL: 'markAsShipped' transaction FAILED for order " + mongoOrderId + " !!!!!!!!!!");
                 ex.printStackTrace();
                 return null;
             });
 
             System.out.println("✅ 'markAsShipped' transaction has been sent asynchronously.");
-            // We can return the generated tracking number to the frontend so it can be displayed immediately.
             return Response.accepted("{\"status\":\"shipping_transaction_sent\", \"trackingNumber\":\"" + trackingNumber + "\"}").build();
 
         } catch (Exception e) {
@@ -161,7 +190,7 @@ public class ProceedOrderController {
 
     @POST
     @Path("/{mongoOrderId}/confirm-delivery")
-    public Response confirmDelivery(@PathParam("mongoOrderId") String mongoOrderId) {
+    public Response confirmDelivery(@PathParam("mongoOrderId") String mongoOrderId, DeliveryConfirmationRequest request) {
 
         System.out.println("✅ Received request to confirm delivery for order: " + mongoOrderId);
 
@@ -169,6 +198,21 @@ public class ProceedOrderController {
         if (order == null || order.blockchainOrderId == null) {
             return Response.status(Response.Status.NOT_FOUND).entity("Order or its blockchain ID not found.").build();
         }
+
+        String expectedMessage = "I confirm I have received my order with ID: " + mongoOrderId;
+
+        boolean isSignatureValid = signatureVerifier.verifySignature(
+                request.getSignature(),
+                request.getSignerAddress(),
+                expectedMessage
+        );
+
+        if (!isSignatureValid) {
+
+            return Response.status(Response.Status.UNAUTHORIZED).entity("Invalid signature.").build();
+        }
+        System.out.println("✅ Delivery confirmation signature verified for order: " + mongoOrderId);
+
         BigInteger blockchainOrderId = BigInteger.valueOf(order.blockchainOrderId);
 
         try {
@@ -194,56 +238,158 @@ public class ProceedOrderController {
     }
 
     @GET
-    @Path("/{mongoOrderId}/blockchain-status")
-    public Response getBlockchainOrderStatus(@PathParam("mongoOrderId") String mongoOrderId) {
-        System.out.println("✅ Received request to get blockchain status for order: " + mongoOrderId);
-
-        ProceedOrder order = service.getOrderWithNumericId(mongoOrderId);
-        if (order == null || order.blockchainOrderId == null) {
-            return Response.status(Response.Status.NOT_FOUND).entity("Order or its blockchain ID not found in local DB.").build();
-        }
-        BigInteger blockchainOrderId = BigInteger.valueOf(order.blockchainOrderId);
+    @Path("/blockchain/all")
+    public Response getAllBlockchainOrders() {
+        System.out.println("✅ Received request to get all orders from the blockchain.");
 
         try {
-            OrderStatusTracker.Order contractOrder = blockchainService.getOrderStateFromBlockchain(blockchainOrderId).get();
+            List<OrderStatusTracker.OrderCreatedEventResponse> events = blockchainService.getAllOrdersFromBlockchainEvents();
 
-            if (contractOrder == null || contractOrder.id.equals(BigInteger.ZERO)) {
-                System.out.println("   -> Blockchain returned an empty order. The order does not exist at this ID on-chain.");
-                return Response.status(Response.Status.NOT_FOUND).entity("Order not found on the blockchain for ID: " + blockchainOrderId).build();
-            }
+            System.out.println("   -> Returning " + events.size() + " orders found on the blockchain.");
 
-            System.out.println("   -> Blockchain returned a valid order. Mapping to DTO.");
-            BlockchainOrderStateDTO responseDto = BlockchainOrderStateDTO.fromContractOrder(contractOrder);
-            return Response.ok(responseDto).build();
+            return Response.ok(events).build();
 
         } catch (Exception e) {
-            System.err.println("CRITICAL: An unexpected exception occurred while reading order state from blockchain for order: " + mongoOrderId);
+            System.err.println("CRITICAL: Failed to retrieve all orders from blockchain events.");
             e.printStackTrace();
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Failed to retrieve data from the blockchain.").build();
         }
     }
 
     @GET
-    @Path("/by-blockchain-id/{blockchainOrderId}")
-    public Response getBlockchainStatusByNumericId(@PathParam("blockchainOrderId") Long blockchainOrderId) {
-        System.out.println("✅ Received request for blockchain status using NUMERIC ID: " + blockchainOrderId);
+    @Path("/blockchain/current-states")
+    public Response getAllOrderCurrentStates() {
+        System.out.println("✅ Received request to get all order current states from the blockchain.");
 
-        return queryBlockchainAndBuildResponse(BigInteger.valueOf(blockchainOrderId));
+        try {
+            List<OrderStatusTracker.OrderCreatedEventResponse> creationEvents = blockchainService.getAllOrdersFromBlockchainEvents();
+
+            Map<BigInteger, FullOrderStateDTO> ordersMap = new HashMap<>();
+
+            for (OrderStatusTracker.OrderCreatedEventResponse event : creationEvents) {
+                FullOrderStateDTO dto = new FullOrderStateDTO();
+                dto.blockchainOrderId = event.orderId.toString();
+                dto.buyerAddress = event.buyer;
+                dto.sellerAddress = event.seller;
+                dto.itemId = event.itemId;
+                dto.stripePaymentIntentId = event.stripePaymentIntentId;
+                dto.latestStatus = "Paid"; // Le statut initial après création est toujours "Paid"
+
+                ordersMap.put(event.orderId, dto);
+            }
+            System.out.println("   -> Found " + ordersMap.size() + " unique orders.");
+
+            List<OrderStatusTracker.OrderStatusChangedEventResponse> statusChangeEvents = blockchainService.getAllOrderStatusChanges();
+            System.out.println("   -> Found " + statusChangeEvents.size() + " status change events to process.");
+
+            for (OrderStatusTracker.OrderStatusChangedEventResponse event : statusChangeEvents) {
+                BigInteger orderId = event.orderId;
+                if (ordersMap.containsKey(orderId)) {
+                    String newStatus = mapStateToString(event.newState);
+                    ordersMap.get(orderId).latestStatus = newStatus;
+                    System.out.println("      -> Updating order " + orderId + " to status: " + newStatus);
+                }
+            }
+
+            List<FullOrderStateDTO> finalResponse = new ArrayList<>(ordersMap.values());
+
+            return Response.ok(finalResponse).build();
+
+        } catch (Exception e) {
+            System.err.println("CRITICAL: Failed to retrieve aggregated order states.");
+            e.printStackTrace();
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
-    private Response queryBlockchainAndBuildResponse(BigInteger numericId) {
+    @GET
+    @Path("/blockchain/all-details")
+    public Response getAllBlockchainOrdersWithDetails() {
+        System.out.println("✅ Received request to get all order details from the blockchain.");
+
         try {
+            List<OrderStatusTracker.OrderCreatedEventResponse> creationEvents = blockchainService.getAllOrdersFromBlockchainEvents();
+            Map<BigInteger, FullOrderStateDTO> ordersMap = new HashMap<>();
+
+            for (OrderStatusTracker.OrderCreatedEventResponse event : creationEvents) {
+                FullOrderStateDTO dto = new FullOrderStateDTO();
+                dto.blockchainOrderId = event.orderId.toString();
+                dto.buyerAddress = event.buyer;
+                dto.sellerAddress = event.seller;
+                dto.itemId = event.itemId;
+                dto.stripePaymentIntentId = event.stripePaymentIntentId;
+                dto.latestStatus = "Paid"; // Statut par défaut après création
+                ordersMap.put(event.orderId, dto);
+            }
+            System.out.println("   -> Discovered " + ordersMap.size() + " unique orders.");
+
+            List<OrderStatusTracker.OrderStatusChangedEventResponse> statusChangeEvents = blockchainService.getAllOrderStatusChanges();
+            for (OrderStatusTracker.OrderStatusChangedEventResponse event : statusChangeEvents) {
+                if (ordersMap.containsKey(event.orderId)) {
+                    ordersMap.get(event.orderId).latestStatus = mapStateToString(event.newState);
+                }
+            }
+            System.out.println("   -> Processed " + statusChangeEvents.size() + " status change events.");
+
+            System.out.println("   -> Enriching orders with tracking numbers where applicable...");
+            for (FullOrderStateDTO dto : ordersMap.values()) {
+                if ("Shipped".equals(dto.latestStatus) || "Delivered".equals(dto.latestStatus) || "Completed".equals(dto.latestStatus)) {
+                    System.out.println("      -> Order " + dto.blockchainOrderId + " has been shipped. Fetching tracking number...");
+
+                    try {
+                        OrderStatusTracker.Order fullOrderData =
+                                blockchainService.getOrderStateFromBlockchain(new BigInteger(dto.getBlockchainOrderId())).get();
+
+                        dto.setTrackingNumber(fullOrderData.trackingNumber);
+                        System.out.println("         -> Found tracking number: " + fullOrderData.trackingNumber);
+
+                    } catch (Exception e) {
+                        System.err.println("!!!!!! Failed to fetch tracking number for order " + dto.blockchainOrderId);
+                    }
+                }
+            }
+
+            List<FullOrderStateDTO> finalResponse = new ArrayList<>(ordersMap.values());
+            return Response.ok(finalResponse).build();
+
+        } catch (Exception e) {
+            System.err.println("CRITICAL: Failed to retrieve aggregated order states.");
+            e.printStackTrace();
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    private String mapStateToString(BigInteger state) {
+        int stateValue = state.intValue();
+        switch (stateValue) {
+            case 0: return "Created";
+            case 1: return "Paid";
+            case 2: return "Shipped";
+            case 3: return "Delivered";
+            case 4: return "Disputed";
+            case 5: return "Completed";
+            case 6: return "Refunded";
+            default: return "Unknown";
+        }
+    }
+
+    @GET
+    @Path("/by-blockchain-id/{blockchainOrderId}")
+    public Response getOrderByBlockchainId(@PathParam("blockchainOrderId") Long blockchainOrderId) {
+        System.out.println("✅ Received request to get blockchain status for NUMERIC ID: " + blockchainOrderId);
+
+        try {
+            BigInteger numericId = BigInteger.valueOf(blockchainOrderId);
             OrderStatusTracker.Order contractOrder = blockchainService.getOrderStateFromBlockchain(numericId).get();
 
             if (contractOrder == null || contractOrder.id.equals(BigInteger.ZERO)) {
-                return Response.status(Response.Status.NOT_FOUND).entity("Order not found on the blockchain for ID: " + numericId).build();
+                return Response.status(Response.Status.NOT_FOUND).entity("Order not found on the blockchain for this ID.").build();
             }
 
-            BlockchainOrderStateDTO responseDto = BlockchainOrderStateDTO.fromContractOrder(contractOrder);
-            return Response.ok(responseDto).build();
+            return Response.ok().build();
 
         } catch (Exception e) {
-            System.err.println("CRITICAL: Failed to read order state from blockchain for numeric ID: " + numericId);
+            System.err.println("CRITICAL: Failed to read order state from blockchain for ID: " + blockchainOrderId);
             e.printStackTrace();
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Failed to retrieve data from the blockchain.").build();
         }

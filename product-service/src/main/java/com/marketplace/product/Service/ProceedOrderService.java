@@ -5,7 +5,9 @@ import com.marketplace.product.Clients.CreatePaymentResponse;
 import com.marketplace.product.Clients.PaymentServiceClient;
 import com.marketplace.product.DTO.ProceedOrderDTO;
 import com.marketplace.product.Entity.CartItem;
+import com.marketplace.product.Entity.CartProduct;
 import com.marketplace.product.Entity.ProceedOrder;
+import com.marketplace.product.Entity.Product;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.NotFoundException;
@@ -54,16 +56,29 @@ public class ProceedOrderService {
         System.out.println("Generated new blockchainOrderId: " + order.blockchainOrderId + " for new order.");
 
         CartItem cartItem = cartItemService.getCartByUserId(dto.userId);
-        if (cartItem != null) {
-            order.products = new ArrayList<>(cartItem.getProducts());
-            order.totalPrice = cartItem.getTotalPrice();
-        } else {
+        if (cartItem == null || cartItem.getProducts().isEmpty()) {
             throw new IllegalStateException("Cannot create an order with an empty or non-existent cart.");
         }
 
+        order.products = new ArrayList<>(cartItem.getProducts());
+
+        double recalculatedTotalPrice = 0.0;
+        for (CartProduct cartProduct : order.products) {
+            Product product = cartProduct.getProduct();
+            int quantity = cartProduct.getQuantity();
+
+            if (product.getDiscount() > 0) {
+                recalculatedTotalPrice += product.getEffectivePrice() * quantity;
+            } else {
+                recalculatedTotalPrice += product.getPrice() * quantity;
+            }
+        }
+
+        order.totalPrice = recalculatedTotalPrice;
+
         String expectedMessage = String.format(
                 "I am signing this message to confirm my intent to place an order for a total of %.2f TND.",
-                cartItem.getTotalPrice()
+                order.totalPrice
         );
 
         System.out.println("--- SIGNATURE VERIFICATION DEBUG ---");
@@ -85,7 +100,7 @@ public class ProceedOrderService {
 
         order.persist();
 
-        long amountInCents = (long) (order.totalPrice * 1000);
+        long amountInCents = (long) (order.totalPrice * 100);
         if (amountInCents < 1500) {
             throw new IllegalStateException("Order total is below the minimum chargeable amount of 1.500 TND.");
         }
@@ -150,13 +165,12 @@ public class ProceedOrderService {
         if (order != null) {
             System.out.println("updateBlockchainInfo: Found order " + mongoOrderId + ". Setting blockchain info...");
 
-            // On s'assure que l'ID qu'on a généré est bien celui qu'on sauvegarde
             order.blockchainOrderId = blockchainOrderId;
             order.blockchainTransactionHash = txHash;
             order.blockchainState = "Paid";
             order.lastBlockchainUpdate = new Date();
 
-            order.update(); // Sauvegarde les changements
+            order.update();
             System.out.println("updateBlockchainInfo: Blockchain info saved to DB for order " + mongoOrderId + ". blockchainOrderId is now: " + order.blockchainOrderId);
         } else {
             System.err.println("updateBlockchainInfo: CRITICAL - Could not find order " + mongoOrderId + " to save blockchain info.");

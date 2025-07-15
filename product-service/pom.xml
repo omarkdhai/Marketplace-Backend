@@ -173,7 +173,7 @@
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
-            <!--
+
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
@@ -196,7 +196,7 @@
                     </arguments>
                 </configuration>
             </plugin>
-            -->
+
         </plugins>
     </build>
 

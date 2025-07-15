@@ -1,6 +1,5 @@
 package com.marketplace.productservice.contracts;
 
-import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.reactivex.Flowable;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -41,11 +40,6 @@ import org.web3j.tx.gas.ContractGasProvider;
  * <p>Generated with web3j version 4.10.0.
  */
 @SuppressWarnings("rawtypes")
-@RegisterForReflection(targets = {
-        OrderStatusTracker.Order.class,
-        OrderStatusTracker.OrderCreatedEventResponse.class,
-        OrderStatusTracker.OrderStatusChangedEventResponse.class
-})
 public class OrderStatusTracker extends Contract {
     public static final String BINARY = "Bin file was not provided";
 
