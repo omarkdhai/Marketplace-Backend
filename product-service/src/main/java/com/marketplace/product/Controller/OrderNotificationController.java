@@ -2,6 +2,7 @@ package com.marketplace.product.Controller;
 
 import com.marketplace.product.Entity.ProceedOrder;
 import com.marketplace.product.Service.BlockchainService;
+import com.marketplace.product.Service.EmailService;
 import com.marketplace.product.Service.ProceedOrderService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -20,6 +21,9 @@ public class OrderNotificationController {
     @Inject
     BlockchainService blockchainService;
 
+    @Inject
+    EmailService emailService;
+
 
     @POST
     @Path("/{orderId}/payment-confirmed")
@@ -35,10 +39,23 @@ public class OrderNotificationController {
         }
         System.out.println("✅ MongoDB status updated to PAID for order " + mongoOrderId);
 
+        ProceedOrder order = proceedOrderService.findByMongoId(mongoOrderId);
+        if (order == null) {
+            System.err.println("Could not retrieve full order details after update. Skipping email and blockchain steps.");
+            return Response.ok("{\"status\":\"payment_processed_db_only\"}").build();
+        }
+
+        System.out.println("   -> Preparing to send confirmation email...");
+        CompletableFuture.runAsync(() -> emailService.sendOrderConfirmationEmail(order))
+                .exceptionally(ex -> {
+                    System.err.println("FAILED to send email for order " + mongoOrderId + ": " + ex.getMessage());
+                    return null;
+                });
+
+
         try {
-            ProceedOrder order = proceedOrderService.getOrderWithNumericId(mongoOrderId);
-            if (order == null || order.blockchainOrderId == null) {
-                return Response.status(Response.Status.NOT_FOUND).entity("Order or its blockchain ID not found after update.").build();
+            if (order.blockchainOrderId == null) {
+                throw new IllegalStateException("Order is missing a blockchainOrderId.");
             }
 
             long blockchainOrderId = order.blockchainOrderId;
@@ -46,10 +63,7 @@ public class OrderNotificationController {
 
             String buyerAddress = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
             String sellerAddress = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
-
             String itemId = order.products.isEmpty() ? "default-item" : order.products.get(0).getProduct().getId().toString();
-
-            System.out.println("Triggering blockchain 'createAndPayOrder' for numeric representation [" + blockchainOrderId + "]");
 
             CompletableFuture<TransactionReceipt> futureReceipt = blockchainService.createAndPayOrderOnBlockchain(
                     BigInteger.valueOf(blockchainOrderId),
@@ -69,7 +83,7 @@ public class OrderNotificationController {
             });
 
             System.out.println("✅ REAL FLOW: 'createAndPayOrder' transaction has been sent (asynchronously). Responding OK.");
-            return Response.ok("{\"status\":\"db_updated_and_blockchain_tx_sent\"}").build();
+            return Response.ok("{\"status\":\"db_updated_email_and_blockchain_tx_sent\"}").build();
 
         } catch (Exception e) {
             System.err.println("CRITICAL: DB was updated, but failed to send blockchain transaction for order: " + mongoOrderId);

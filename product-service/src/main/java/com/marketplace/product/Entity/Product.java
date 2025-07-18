@@ -3,6 +3,7 @@ package com.marketplace.product.Entity;
 import com.marketplace.product.Enum.ProductStatus;
 import io.quarkus.mongodb.panache.PanacheMongoEntity;
 import io.smallrye.common.constraint.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -14,6 +15,7 @@ import java.util.List;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
 public class Product extends PanacheMongoEntity {
 
     private ObjectId id;
@@ -43,6 +45,8 @@ public class Product extends PanacheMongoEntity {
     private List<String> keywords;
 
     private double discount = 0.0;
+
+    private String imgUrl;
 
     public Product(String name, String description, double price, ProductStatus status, Instant creationDate, List<CategoryInfo> categories, List<String> keywords, double discount) {
         this.name = name;

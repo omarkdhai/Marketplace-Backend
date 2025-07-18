@@ -4,6 +4,7 @@ import com.marketplace.product.Clients.CreatePaymentResponse;
 import com.marketplace.product.DTO.*;
 import com.marketplace.product.Entity.ProceedOrder;
 import com.marketplace.product.Service.BlockchainService;
+import com.marketplace.product.Service.EmailService;
 import com.marketplace.product.Service.ProceedOrderService;
 import com.marketplace.product.Service.SignatureVerificationService;
 import com.marketplace.productservice.contracts.OrderStatusTracker;
@@ -13,11 +14,10 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 @Path("/api/v1/orders")
@@ -27,6 +27,9 @@ public class ProceedOrderController {
 
     @Inject
     ProceedOrderService service;
+
+    @Inject
+    EmailService emailService;
 
     @Inject
     BlockchainService blockchainService;
@@ -126,15 +129,11 @@ public class ProceedOrderController {
 
         System.out.println("✅ Received request to ship order: " + mongoOrderId);
 
-        // --- START OF CORRECTION ---
-
-        // 1. On récupère le trackingNumber depuis la requête du client.
         String trackingNumber = request.getTrackingNumber();
         if (trackingNumber == null || trackingNumber.isEmpty()) {
             return Response.status(Response.Status.BAD_REQUEST).entity("{\"error\":\"Tracking number is missing from the request.\"}").build();
         }
 
-        // 2. On reconstruit le message attendu en utilisant les informations fournies.
         String expectedMessage = "I confirm the shipment of order " + mongoOrderId + " with tracking number " + trackingNumber;
 
         System.out.println("--- Verifying Signature ---");
@@ -142,14 +141,11 @@ public class ProceedOrderController {
         System.out.println("   - Received Signature: " + request.getSignature());
         System.out.println("   - Received Signer Address: " + request.getSignerAddress());
 
-        // 3. On vérifie la signature.
         boolean isSignatureValid = signatureVerifier.verifySignature(
                 request.getSignature(),
                 request.getSignerAddress(),
                 expectedMessage
         );
-
-        // --- END OF CORRECTION ---
 
         if (!isSignatureValid) {
             return Response.status(Response.Status.UNAUTHORIZED).entity("{\"error\":\"Invalid signature for shipping confirmation.\"}").build();
@@ -157,10 +153,7 @@ public class ProceedOrderController {
 
         System.out.println("✅ Shipping signature verified for order: " + mongoOrderId);
 
-        // La suite de la logique ne change pas, car elle utilise maintenant le 'trackingNumber'
-        // qui vient de la requête et a été validé par la signature.
-
-        ProceedOrder order = service.findByMongoId(mongoOrderId); // On utilise findByMongoId pour la clarté
+        ProceedOrder order = service.findByMongoId(mongoOrderId);
         if (order == null || order.blockchainOrderId == null) {
             return Response.status(Response.Status.NOT_FOUND).entity("Order or its blockchain ID not found.").build();
         }
@@ -172,6 +165,11 @@ public class ProceedOrderController {
             futureReceipt.thenAccept(receipt -> {
                 System.out.println("✅ 'markAsShipped' transaction confirmed! TxHash: " + receipt.getTransactionHash());
                 service.updateOrderStatusToShipped(mongoOrderId, trackingNumber, receipt.getTransactionHash());
+
+                ProceedOrder updatedOrder = service.findByMongoId(mongoOrderId);
+                if (updatedOrder != null) {
+                    CompletableFuture.runAsync(() -> emailService.sendOrderShippedEmail(updatedOrder));
+                }
             }).exceptionally(ex -> {
                 System.err.println("CRITICAL: 'markAsShipped' transaction FAILED for order " + mongoOrderId + " !!!!!!!!!!");
                 ex.printStackTrace();
@@ -453,4 +451,67 @@ public class ProceedOrderController {
         }
     }
 
+    @GET
+    @Path("/email-preview/{mongoOrderId}")
+    @Produces(MediaType.TEXT_HTML)
+    public Response previewEmailTemplate(@PathParam("mongoOrderId") String mongoOrderId) {
+        System.out.println("✅ Received request to preview email for order: " + mongoOrderId);
+
+        ProceedOrder order = service.findByMongoId(mongoOrderId);
+        if (order == null) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("<h1>Order not found</h1><p>Could not find order with ID: " + mongoOrderId + "</p>")
+                    .build();
+        }
+
+        try {
+            InputStream logoStream = getClass().getResourceAsStream("/marketplacelogo1.png");
+            if (logoStream == null) {
+                throw new IOException("Could not find marketplacelogo1.png in resources for preview.");
+            }
+            byte[] logoBytes = logoStream.readAllBytes();
+            String logoBase64 = Base64.getEncoder().encodeToString(logoBytes);
+
+            String emailHtml = emailService.buildOrderShippedHtml(order, logoBase64);
+            return Response.ok(emailHtml).build();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity("<h1>Error generating template</h1><pre>" + e.getMessage() + "</pre>")
+                    .build();
+        }
+    }
+
+    @GET
+    @Path("/email-ship-preview/{mongoOrderId}")
+    @Produces(MediaType.TEXT_HTML)
+    public Response previewShipEmailTemplate(@PathParam("mongoOrderId") String mongoOrderId) {
+        System.out.println("✅ Received request to preview email for order: " + mongoOrderId);
+
+        ProceedOrder order = service.findByMongoId(mongoOrderId);
+        if (order == null) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("<h1>Order not found</h1><p>Could not find order with ID: " + mongoOrderId + "</p>")
+                    .build();
+        }
+
+        try {
+            InputStream logoStream = getClass().getResourceAsStream("/marketplacelogo1.png");
+            if (logoStream == null) {
+                throw new IOException("Could not find marketplacelogo1.png in resources for preview.");
+            }
+            byte[] logoBytes = logoStream.readAllBytes();
+            String logoBase64 = Base64.getEncoder().encodeToString(logoBytes);
+
+            String emailHtml = emailService.buildOrderShippedHtml(order, logoBase64);
+            return Response.ok(emailHtml).build();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity("<h1>Error generating template</h1><pre>" + e.getMessage() + "</pre>")
+                    .build();
+        }
+    }
 }

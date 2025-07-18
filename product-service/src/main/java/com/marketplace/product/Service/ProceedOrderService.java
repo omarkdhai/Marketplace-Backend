@@ -229,11 +229,12 @@ public class ProceedOrderService {
 
         order.paymentStatus = "SHIPPED";
         order.trackingNumber = trackingNumber;
+        order.shippedAt = new Date();
         order.blockchainTransactionHash = txHash;
         order.blockchainState = "Shipped";
         order.lastBlockchainUpdate = new Date();
         order.update();
-        System.out.println("Order " + mongoOrderId + " status updated to SHIPPED in MongoDB.");
+        System.out.println("Order " + mongoOrderId + " status updated to SHIPPED in MongoDB at " + order.shippedAt);
         return true;
     }
 

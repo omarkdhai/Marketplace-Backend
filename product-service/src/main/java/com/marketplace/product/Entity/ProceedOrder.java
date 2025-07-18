@@ -32,6 +32,7 @@ public class ProceedOrder extends PanacheMongoEntity {
     public LocalDateTime createdAt = LocalDateTime.now();
     public Boolean orderStatus = false;
     public String trackingNumber;
+    public Date shippedAt;
 
     public List<CartProduct> products = new ArrayList<>();
     public double totalPrice;
