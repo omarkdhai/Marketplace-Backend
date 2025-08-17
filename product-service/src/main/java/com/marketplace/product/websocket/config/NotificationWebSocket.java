@@ -5,6 +5,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.marketplace.product.Entity.ProceedOrder;
 import com.marketplace.product.Entity.Product;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import jakarta.websocket.*;
 import jakarta.websocket.server.ServerEndpoint;
 import org.slf4j.Logger;
@@ -17,6 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @ApplicationScoped
 public class NotificationWebSocket {
 
+  @Inject
+  OrderNotificationRepository orderNotificationRepository;
   private final Logger Log  = LoggerFactory.getLogger(NotificationWebSocket.class.getName());
 
 
@@ -66,7 +69,7 @@ public class NotificationWebSocket {
           product.getPrice(),
           product.getStatus().toString(),
           product.getCreationDate(),
-          product.getImgUrl()
+          product.getPhoto()
       );
 
       String message = objectMapper.writeValueAsString(notification);
@@ -80,7 +83,12 @@ public class NotificationWebSocket {
 
   public void broadcastOrderNotification(ProceedOrder proceedOrder , String action) {
     try {
-      String message = objectMapper.writeValueAsString(proceedOrder);
+      OrderNotification notification = new OrderNotification(
+              action,
+              proceedOrder.getId().toString()
+      );
+      orderNotificationRepository.persist(notification);
+      String message = objectMapper.writeValueAsString(notification);
       broadcast(message);
       Log.info("Broadcasted order notification: " + action + " - " + proceedOrder.getId().toString());
     } catch (Exception e) {

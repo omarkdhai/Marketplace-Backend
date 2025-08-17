@@ -243,7 +243,7 @@ public class ProceedOrderService {
 
     public boolean updateOrderStatusToCompleted(String mongoOrderId, String txHash) {
         ProceedOrder order = ProceedOrder.findById(new ObjectId(mongoOrderId));
-        orderWebSocket.broadcastOrderNotification(order, "DELIVERED_ORDER");
+       // orderWebSocket.broadcastOrderNotification(order, "DELIVERED_ORDER");
         if (order == null) {
             System.err.println("Attempted to complete a non-existent order: " + mongoOrderId);
             return false;

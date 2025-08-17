@@ -229,6 +229,8 @@ public class ProceedOrderController {
                 return null;
             });
 
+            orderWebSocket.broadcastOrderNotification(order, "DELIVERED_ORDER");
+
             System.out.println("✅ 'confirmDelivered' transaction has been sent asynchronously.");
             return Response.accepted("{\"status\":\"delivery_confirmation_sent\"}").build();
 

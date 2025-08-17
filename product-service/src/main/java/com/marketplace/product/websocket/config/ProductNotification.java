@@ -1,5 +1,6 @@
 package com.marketplace.product.websocket.config;
 
+import io.quarkus.mongodb.panache.PanacheMongoEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -7,7 +8,7 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 @Builder
-public class ProductNotification {
+public class ProductNotification extends PanacheMongoEntity {
   private String action;
   private String productId;
   private String name;
