@@ -8,12 +8,12 @@ import com.marketplace.product.Entity.CartItem;
 import com.marketplace.product.Entity.CartProduct;
 import com.marketplace.product.Entity.ProceedOrder;
 import com.marketplace.product.Entity.Product;
+import com.marketplace.product.websocket.config.NotificationWebSocket;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.NotFoundException;
 import org.bson.types.ObjectId;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
-
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -32,6 +32,9 @@ public class ProceedOrderService {
     @Inject
     @RestClient
     PaymentServiceClient paymentServiceClient;
+
+    @Inject
+    NotificationWebSocket orderWebSocket;
 
     private static final AtomicLong numericIdCounter = new AtomicLong(System.currentTimeMillis());
 
@@ -240,6 +243,7 @@ public class ProceedOrderService {
 
     public boolean updateOrderStatusToCompleted(String mongoOrderId, String txHash) {
         ProceedOrder order = ProceedOrder.findById(new ObjectId(mongoOrderId));
+        orderWebSocket.broadcastOrderNotification(order, "DELIVERED_ORDER");
         if (order == null) {
             System.err.println("Attempted to complete a non-existent order: " + mongoOrderId);
             return false;

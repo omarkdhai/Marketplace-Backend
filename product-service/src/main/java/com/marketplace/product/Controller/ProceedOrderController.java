@@ -7,6 +7,7 @@ import com.marketplace.product.Service.BlockchainService;
 import com.marketplace.product.Service.EmailService;
 import com.marketplace.product.Service.ProceedOrderService;
 import com.marketplace.product.Service.SignatureVerificationService;
+import com.marketplace.product.websocket.config.NotificationWebSocket;
 import com.marketplace.productservice.contracts.OrderStatusTracker;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -37,6 +38,8 @@ public class ProceedOrderController {
     @Inject
     SignatureVerificationService signatureVerifier;
 
+    @Inject
+    NotificationWebSocket orderWebSocket;
 
     @POST
     public Response submitOrder(ProceedOrderDTO dto) {
@@ -167,6 +170,7 @@ public class ProceedOrderController {
                 service.updateOrderStatusToShipped(mongoOrderId, trackingNumber, receipt.getTransactionHash());
 
                 ProceedOrder updatedOrder = service.findByMongoId(mongoOrderId);
+                orderWebSocket.broadcastOrderNotification(updatedOrder, "SHIP_ORDER");
                 if (updatedOrder != null) {
                     CompletableFuture.runAsync(() -> emailService.sendOrderShippedEmail(updatedOrder));
                 }

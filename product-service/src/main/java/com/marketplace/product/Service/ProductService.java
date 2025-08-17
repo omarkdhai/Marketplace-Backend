@@ -5,6 +5,7 @@ import com.marketplace.product.Entity.CategoryInfo;
 import com.marketplace.product.Entity.Product;
 import com.marketplace.product.Enum.ProductStatus;
 import com.marketplace.product.Repository.ProductRepository;
+import com.marketplace.product.websocket.config.NotificationWebSocket;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
@@ -14,7 +15,6 @@ import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -23,12 +23,15 @@ public class ProductService {
     @Inject
     ProductRepository productRepository;
 
+    @Inject
+    NotificationWebSocket notificationWebSocket;
 
     //Add Product
     public Product addProduct(Product product) {
         try {
             if (product != null) {
                 product.persist();
+                notificationWebSocket.broadcastProductNotification(product,"PRODUCT_CREATED");
                 return product;
             } else {
                 throw new IllegalArgumentException("Product cannot be null");
