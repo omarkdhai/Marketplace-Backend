@@ -7,6 +7,7 @@ import com.marketplace.product.Entity.Product;
 import com.marketplace.product.Enum.ProductStatus;
 import com.marketplace.product.Repository.ProductRepository;
 import com.marketplace.product.Service.ProductService;
+import com.marketplace.product.websocket.config.NotificationWebSocket;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -29,8 +30,10 @@ public class ProductController {
     @Inject
     ProductRepository productRepository;
 
+    @Inject
+    NotificationWebSocket notificationWebSocket;
+
     private static final Logger LOGGER = Logger.getLogger(ProductController.class);
-    //private static final String UPLOAD_DIR = "C:/Users/21628/Documents/PFE Documents/Marketplace Project/uploaded-images";
 
     @GET
     @Produces("application/json")
@@ -156,7 +159,12 @@ public class ProductController {
                 return Response.status(Response.Status.BAD_REQUEST).entity("Discount must be between 0 and 100.").build();
             }
             Product updated = productService.updateProduct(id, form);
+            if (form.getDiscount() > 0) {
+                notificationWebSocket.broadcastProductNotification(updated, "PRODUCT_DISCOUNT");
+                LOGGER.info("Broadcasted a discount notification for product: " + updated.getName());
+            }
             return Response.ok(updated).build();
+
         } catch (WebApplicationException e) {
             return Response.status(e.getResponse().getStatus())
                     .entity(e.getMessage())

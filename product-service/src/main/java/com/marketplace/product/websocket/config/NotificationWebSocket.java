@@ -11,6 +11,7 @@ import jakarta.websocket.server.ServerEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -20,9 +21,10 @@ public class NotificationWebSocket {
 
   @Inject
   OrderNotificationRepository orderNotificationRepository;
+
+  @Inject
+  NotificationRepository notificationRepository;
   private final Logger Log  = LoggerFactory.getLogger(NotificationWebSocket.class.getName());
-
-
   private static final Map<String, Session> sessions = new ConcurrentHashMap<>();
   private final ObjectMapper objectMapper;
 
@@ -61,42 +63,46 @@ public class NotificationWebSocket {
 
   public void broadcastProductNotification(Product product, String action) {
     try {
-      ProductNotification notification = new ProductNotification(
-          action,
-          product.getId().toString(),
-          product.getName(),
-          product.getDescription(),
-          product.getPrice(),
-          product.getStatus().toString(),
-          product.getCreationDate(),
-          product.getPhoto()
+      Map<String, Object> frontendPayload = Map.of(
+              "action", action,
+              "productId", product.getId().toString(),
+              "name", product.getName(),
+              "description", product.getDescription(),
+              "price", product.getPrice(),
+              "photo", product.getPhoto(),
+              "timestamp", Instant.now().toString()
       );
 
-      String message = objectMapper.writeValueAsString(notification);
+      Notification dbNotification = new Notification(action, frontendPayload);
+      notificationRepository.persist(dbNotification);
+
+      String message = objectMapper.writeValueAsString(frontendPayload);
       broadcast(message);
-      Log.info("Broadcasted product notification: " + action + " - " + product.getName());
+      Log.info("Broadcasted and persisted product notification: " + action + " - " + product.getName());
     } catch (Exception e) {
       Log.error("Error broadcasting product notification", e);
     }
   }
 
 
-  public void broadcastOrderNotification(ProceedOrder proceedOrder , String action) {
+  public void broadcastOrderNotification(ProceedOrder proceedOrder, String action) {
     try {
-      OrderNotification notification = new OrderNotification(
-              action,
-              proceedOrder.getId().toString()
+      Map<String, Object> frontendPayload = Map.of(
+              "action", action,
+              "orderId", proceedOrder.getId().toString(),
+              "timestamp", Instant.now().toString()
       );
-      orderNotificationRepository.persist(notification);
-      String message = objectMapper.writeValueAsString(notification);
+      Notification dbNotification = new Notification(action, frontendPayload);
+      notificationRepository.persist(dbNotification);
+      String message = objectMapper.writeValueAsString(frontendPayload);
       broadcast(message);
-      Log.info("Broadcasted order notification: " + action + " - " + proceedOrder.getId().toString());
+      Log.info("Broadcasted and persisted order notification: " + action + " - " + proceedOrder.getId().toString());
     } catch (Exception e) {
-      Log.error("Error broadcasting product notification", e);
+      Log.error("Error broadcasting order notification", e);
     }
   }
 
-  private void broadcast(String message) {
+  public void broadcast(String message) {
     sessions.values().forEach(session -> sendToSession(session, message));
   }
 
@@ -113,4 +119,3 @@ public class NotificationWebSocket {
     }
   }
 }
-

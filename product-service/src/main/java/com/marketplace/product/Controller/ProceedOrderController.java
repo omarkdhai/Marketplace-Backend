@@ -428,7 +428,7 @@ public class ProceedOrderController {
         }
     }
 
-    @POST
+    /*@POST
     @Path("/{mongoOrderId}/resolve-dispute")
     public Response resolveDispute(@PathParam("mongoOrderId") String mongoOrderId, @QueryParam("refund") boolean wasRefunded) {
         System.out.println("✅ Received admin request to resolve dispute for order: " + mongoOrderId + ", with refund: " + wasRefunded);
@@ -455,7 +455,7 @@ public class ProceedOrderController {
         } catch (Exception e) {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
         }
-    }
+    }*/
 
     @GET
     @Path("/email-preview/{mongoOrderId}")
@@ -518,6 +518,62 @@ public class ProceedOrderController {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                     .entity("<h1>Error generating template</h1><pre>" + e.getMessage() + "</pre>")
                     .build();
+        }
+    }
+
+    @POST
+    @Path("/{mongoOrderId}/notify-dispute-opened")
+    public Response notifyDisputeOpened(
+            @PathParam("mongoOrderId") String mongoOrderId,
+            @QueryParam("txHash") String txHash) {
+
+        System.out.println("✅ Received notification that a dispute was opened for order: " + mongoOrderId);
+        if (txHash == null || txHash.isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Transaction hash is required.").build();
+        }
+
+        boolean success = service.updateOrderStatusToDisputed(mongoOrderId, txHash);
+
+        if (success) {
+            return Response.ok("{\"status\":\"dispute_status_updated_in_db\"}").build();
+        } else {
+            return Response.status(Response.Status.NOT_FOUND).entity("Order not found.").build();
+        }
+    }
+
+    @POST
+    @Path("/{mongoOrderId}/resolve-dispute")
+    public Response resolveDispute(
+            @PathParam("mongoOrderId") String mongoOrderId,
+            @QueryParam("refund") boolean wasRefunded) {
+
+        System.out.println("✅ Received admin request to resolve dispute for order: " + mongoOrderId + ", with refund: " + wasRefunded);
+
+        ProceedOrder order = service.findByMongoId(mongoOrderId);
+        if (order == null || order.blockchainOrderId == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        BigInteger blockchainOrderId = BigInteger.valueOf(order.blockchainOrderId);
+
+        try {
+            CompletableFuture<TransactionReceipt> futureReceipt = blockchainService.resolveDispute(blockchainOrderId, wasRefunded);
+
+            futureReceipt.thenAccept(receipt -> {
+                if (receipt.isStatusOK()) {
+                    System.out.println("✅ 'resolveDispute' transaction confirmed! TxHash: " + receipt.getTransactionHash());
+                    service.updateOrderStatusAfterDispute(mongoOrderId, wasRefunded, receipt.getTransactionHash());
+                } else {
+                    System.err.println("CRITICAL: 'resolveDispute' tx REVERTED for order " + mongoOrderId);
+                }
+            }).exceptionally(ex -> {
+                System.err.println("CRITICAL: 'resolveDispute' transaction FAILED for order " + mongoOrderId);
+                ex.printStackTrace();
+                return null;
+            });
+
+            return Response.accepted("{\"status\":\"dispute_resolution_sent\"}").build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
         }
     }
 }

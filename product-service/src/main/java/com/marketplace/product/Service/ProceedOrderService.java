@@ -260,12 +260,15 @@ public class ProceedOrderService {
 
     public boolean updateOrderStatusToDisputed(String mongoOrderId, String txHash) {
         ProceedOrder order = findByMongoId(mongoOrderId);
-        if (order == null) return false;
+        if (order == null) {
+            System.err.println("Attempted to open dispute for a non-existent order: " + mongoOrderId);
+            return false;
+        }
 
-        order.paymentStatus = "DISPUTED";
-        order.blockchainTransactionHash = txHash;
-        order.blockchainState = "Disputed";
-        order.lastBlockchainUpdate = new Date();
+        order.setPaymentStatus("DISPUTED");
+        order.setBlockchainState("Disputed");
+        order.setBlockchainTransactionHash(txHash);
+        order.setLastBlockchainUpdate(new Date());
         order.update();
         System.out.println("Order " + mongoOrderId + " status updated to DISPUTED in MongoDB.");
         return true;
@@ -273,15 +276,20 @@ public class ProceedOrderService {
 
     public boolean updateOrderStatusAfterDispute(String mongoOrderId, boolean wasRefunded, String txHash) {
         ProceedOrder order = findByMongoId(mongoOrderId);
-        if (order == null) return false;
+        if (order == null) {
+            System.err.println("Attempted to resolve dispute for a non-existent order: " + mongoOrderId);
+            return false;
+        }
 
         String finalStatus = wasRefunded ? "REFUNDED" : "COMPLETED";
-        order.paymentStatus = finalStatus;
-        order.blockchainTransactionHash = txHash;
-        order.blockchainState = wasRefunded ? "Refunded" : "Completed";
-        order.lastBlockchainUpdate = new Date();
+        String finalBlockchainState = wasRefunded ? "Refunded" : "Completed";
+
+        order.setPaymentStatus(finalStatus);
+        order.setBlockchainState(finalBlockchainState);
+        order.setBlockchainTransactionHash(txHash);
+        order.setLastBlockchainUpdate(new Date());
         order.update();
-        System.out.println("Dispute for order " + mongoOrderId + " resolved. Status set to " + finalStatus + " in MongoDB.");
+        System.out.println("Dispute for order " + mongoOrderId + " resolved. Status updated to " + finalStatus + " in MongoDB.");
         return true;
     }
 }
