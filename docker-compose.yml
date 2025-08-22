@@ -45,7 +45,7 @@ services:
       - POSTGRES_PASSWORD=admin
       - POSTGRES_DB=keycloak
     ports:
-      - "55655:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -58,6 +58,69 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+
+  auth-service:
+    build:
+      context: ./auth-service
+    container_name: auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      - QUARKUS_HTTP_PORT=8081
+      - QUARKUS_OIDC_AUTH_SERVER_URL=http://keycloak:8080/realms/pfe-realm
+      - QUARKUS_OIDC_CLIENT_ID=quarkus-be
+      - QUARKUS_OIDC_CREDENTIALS_SECRET=lKSVEtQNeq3BTagQkiHHJLM69bQPCuWW
+      - KEYCLOAK_SERVERURL=http://keycloak:8080
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_USERNAME=omarkdhai@gmail.com
+    depends_on:
+      - keycloak
+    networks:
+      - default
+      - kong-net
+
+  
+
+  notif-service:
+    build:
+      context: ./notif-service
+    container_name: notif-service
+    ports:
+      - "8083:8083"
+    environment:
+      - QUARKUS_HTTP_PORT=8083
+      - QUARKUS_MONGODB_CONNECTION_STRING=mongodb://mongo:27017
+      - QUARKUS_MONGODB_DATABASE=notif-service
+    depends_on:
+      - mongo
+
+  support-service:
+    build:
+      context: ./support-service
+    container_name: support-service
+    ports:
+      - "8084:8084"
+    environment:
+      - QUARKUS_HTTP_PORT=8084
+      - QUARKUS_MONGODB_CONNECTION_STRING=mongodb://mongo:27017
+      - QUARKUS_MONGODB_DATABASE=support-service
+    depends_on:
+      - mongo
+
+  payment-service:
+    build:
+      context: ./payment-service
+    container_name: payment-service
+    ports:
+      - "8085:8085"
+    environment:
+      - QUARKUS_HTTP_PORT=8085
+      - QUARKUS_MONGODB_CONNECTION_STRING=mongodb://mongo:27017
+      - QUARKUS_MONGODB_DATABASE=payment-service
+    depends_on:
+      - mongo  
+    networks:
+      - kong-net
 
 networks:
   kong-net:

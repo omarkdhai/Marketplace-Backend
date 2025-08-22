@@ -22,11 +22,9 @@ WORKDIR /work/
 
 # Copy the built application from the build stage
 COPY --from=0 /work/target/quarkus-app/ ./
-COPY --from=0 /work/target/quarkus-app/ ./
 
-
-# Expose the application port (this is for documentation, the real port is set in docker-compose.yml)
-EXPOSE 8081
+# Expose the application port
+EXPOSE 8084
 
 # Command to run the application
 CMD ["java", "-jar", "quarkus-run.jar"]

@@ -1,5 +1,9 @@
-*
-!target/*-runner
-!target/*-runner.jar
-!target/lib/*
-!target/quarkus-app/*
+# File: support-service/.dockerignore
+
+# Ignore the build output directory
+/target
+
+# Ignore IDE-specific files
+.idea/
+.vscode/
+*.iml

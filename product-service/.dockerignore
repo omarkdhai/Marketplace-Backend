@@ -1,10 +1,4 @@
-# Ignore files that are not required for the Docker build
-*.log
-*.md
-.git
-.gitignore
+/target
 .idea/
 .vscode/
-
-# Do not ignore the target/quarkus-app directory
-!target/quarkus-app/
+*.iml

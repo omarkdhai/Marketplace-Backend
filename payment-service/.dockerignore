@@ -1,5 +1,7 @@
-*
-!target/*-runner
-!target/*-runner.jar
-!target/lib/*
-!target/quarkus-app/*
+# Ignore the build output directory
+/target
+
+# Ignore IDE-specific files
+.idea/
+.vscode/
+*.iml
