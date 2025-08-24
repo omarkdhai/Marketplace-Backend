@@ -1,0 +1,52 @@
+[{
+  "_id": {
+    "$oid": "6807a02abc22507208dbecb6"
+  },
+  "creationDate": {
+    "$date": "2025-04-22T13:56:58.286Z"
+  },
+  "email": "omar.koudhai@example.com",
+  "firstName": "Omar",
+  "lastName": "Koudhai",
+  "message": "The user experience of this website is wonderful.",
+  "phoneNumber": 27808574
+},
+{
+  "_id": {
+    "$oid": "68238cd90fc48922ae354b1a"
+  },
+  "creationDate": {
+    "$date": "2025-05-13T18:18:01.167Z"
+  },
+  "email": "chaima.koudhai@example.com",
+  "firstName": "Chaima",
+  "lastName": "Koudhai",
+  "message": "Great experience! The platform is easy to use, and the products are well organized. Highly recommend!",
+  "phoneNumber": 22558965
+},
+{
+  "_id": {
+    "$oid": "68238d110fc48922ae354b1b"
+  },
+  "creationDate": {
+    "$date": "2025-05-13T18:18:57.086Z"
+  },
+  "email": "ahmed.dridi@example.com",
+  "firstName": "Ahmed",
+  "lastName": "Dridi",
+  "message": "Smooth browsing and quick checkout. Very satisfied with the service!",
+  "phoneNumber": 53669584
+},
+{
+  "_id": {
+    "$oid": "68238d6e0fc48922ae354b1d"
+  },
+  "creationDate": {
+    "$date": "2025-05-13T18:20:30.022Z"
+  },
+  "email": "mohamed.zeddini@example.com",
+  "firstName": "Mohammed",
+  "lastName": "Zeddini",
+  "message": "User-friendly interface and fast support. Found exactly what I needed!",
+  "phoneNumber": 23110560
+}]

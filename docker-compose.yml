@@ -14,6 +14,16 @@ services:
       - KONG_DECLARATIVE_CONFIG=/usr/local/kong/declarative/kong.yml
       - KONG_ADMIN_LISTEN=0.0.0.0:8001
 
+  krakend-gateway:
+    image: devopsfaith/krakend:latest
+    container_name: krakend-gateway
+    volumes:
+      - ./krakend.json:/etc/krakend/krakend.json:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - kong-net
+
   keycloak:
     image: quay.io/keycloak/keycloak:latest
     container_name: keycloak
@@ -55,9 +65,26 @@ services:
     image: mongo:latest
     container_name: mongo
     ports:
-      - "27017:27017"
+      - "27018:27017"
     volumes:
       - mongo_data:/data/db
+    networks:
+      - kong-net 
+
+  product-service:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+    container_name: product-service
+    ports:
+      - "8082:8082"
+    environment:
+      - QUARKUS_MONGODB_CONNECTION_STRING=mongodb://mongo:27017
+      - QUARKUS_MONGODB_DATABASE=product-service
+    depends_on:
+      - mongo  
+    networks:
+      - kong-net
 
   auth-service:
     build:
@@ -71,15 +98,13 @@ services:
       - QUARKUS_OIDC_CLIENT_ID=quarkus-be
       - QUARKUS_OIDC_CREDENTIALS_SECRET=lKSVEtQNeq3BTagQkiHHJLM69bQPCuWW
       - KEYCLOAK_SERVERURL=http://keycloak:8080
-      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_PASSWORD='ydit wjzm gdca ihto'
       - MAIL_USERNAME=omarkdhai@gmail.com
     depends_on:
       - keycloak
     networks:
-      - default
       - kong-net
 
-  
 
   notif-service:
     build:
@@ -93,6 +118,8 @@ services:
       - QUARKUS_MONGODB_DATABASE=notif-service
     depends_on:
       - mongo
+    networks:
+      - kong-net
 
   support-service:
     build:
@@ -106,6 +133,8 @@ services:
       - QUARKUS_MONGODB_DATABASE=support-service
     depends_on:
       - mongo
+    networks:
+      - kong-net
 
   payment-service:
     build:
@@ -122,6 +151,47 @@ services:
     networks:
       - kong-net
 
+  angular-app:
+    build:
+      context: ./MArketplaceFrontend/
+      dockerfile: Dockerfile
+    container_name: angular-app
+    ports:
+      - "4201:80"
+    restart: always
+    networks:
+      - kong-net
+    depends_on:
+      - payment-service
+      - support-service
+      - auth-service
+      - notif-service
+      - product-service
+
+  angular-app-admin:
+    build:
+      context: ./AdminFrontEnd/Marketplace-FrontEnd-Admin/
+      dockerfile: Dockerfile
+    container_name: angular-app-admin
+    ports:
+      - "4202:80"
+    restart: always
+    networks:
+      - kong-net
+    depends_on:
+      - payment-service
+      - support-service
+      - auth-service
+      - notif-service
+      - product-service
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    ports:
+      - "9999:8080"   
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
 networks:
   kong-net:
     driver: bridge

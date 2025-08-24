@@ -1,0 +1,60 @@
+[{
+  "_id": {
+    "$oid": "68a331f619a5463cf5ea3e1d"
+  },
+  "action": "SHIP_ORDER",
+  "orderId": "68a331bc19a5463cf5ea3e1c",
+  "timestamp": {
+    "$date": "2025-08-18T14:00:22.192Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "68a334a119a5463cf5ea3e1e"
+  },
+  "action": "DELIVERED_ORDER",
+  "orderId": "68a331bc19a5463cf5ea3e1c",
+  "timestamp": {
+    "$date": "2025-08-18T14:11:45.239Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "68a33e0f19a5463cf5ea3e22"
+  },
+  "action": "SHIP_ORDER",
+  "orderId": "68a33dee19a5463cf5ea3e21",
+  "timestamp": {
+    "$date": "2025-08-18T14:51:59.891Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "68a33f9919a5463cf5ea3e23"
+  },
+  "action": "DELIVERED_ORDER",
+  "orderId": "68a33dee19a5463cf5ea3e21",
+  "timestamp": {
+    "$date": "2025-08-18T14:58:33.892Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "68a34a5e19a5463cf5ea3e25"
+  },
+  "action": "SHIP_ORDER",
+  "orderId": "68a34a4e19a5463cf5ea3e24",
+  "timestamp": {
+    "$date": "2025-08-18T15:44:30.723Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "68a34b9019a5463cf5ea3e26"
+  },
+  "action": "DELIVERED_ORDER",
+  "orderId": "68a34a4e19a5463cf5ea3e24",
+  "timestamp": {
+    "$date": "2025-08-18T15:49:36.079Z"
+  }
+}]

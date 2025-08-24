@@ -1,0 +1,39 @@
+[{
+  "_id": {
+    "$oid": "67f4e913fa46e825e02c925e"
+  },
+  "createdAt": {
+    "$date": "2025-04-08T10:14:59.213Z"
+  },
+  "message": "This is a test email.",
+  "read": false,
+  "title": "API Test",
+  "type": "EMAIL",
+  "userId": "omar@example.com"
+},
+{
+  "_id": {
+    "$oid": "67f4f383fa46e825e02c925f"
+  },
+  "createdAt": {
+    "$date": "2025-04-08T10:59:31.032Z"
+  },
+  "message": "This is a test email.",
+  "read": false,
+  "title": "API Testing",
+  "type": "EMAIL",
+  "userId": "omarkdhai@example.com"
+},
+{
+  "_id": {
+    "$oid": "67f4f3e4fa46e825e02c9260"
+  },
+  "createdAt": {
+    "$date": "2025-04-08T11:01:08.925Z"
+  },
+  "message": "This is a test email.",
+  "read": false,
+  "title": "API Testing",
+  "type": "EMAIL",
+  "userId": "omarkdhaii@example.com"
+}]

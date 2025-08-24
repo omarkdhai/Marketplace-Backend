@@ -1,0 +1,667 @@
+{
+    "$id":"https://www.krakend.io/schema/v3.json",
+    "version":3,
+    "name":"api-gateway",
+    "timeout":"35s",
+    "plugin":{
+       "pattern":".so",
+       "folder":"/etc/krakend/plugins/"
+    },
+    "cache_ttl":"300s",
+    "read_timeout":"12h",
+    "idle_timeout":"12h",
+    "write_timeout":"12h",
+    "read_header_timeout":"12h",
+    "debug_endpoint":true,
+    "echo_endpoint":true,
+    "output_encoding":"json",
+    "client_tls":{
+       "allow_insecure_connections":true,
+       "min_version":"TLS12",
+       "max_version":"TLS12"
+    },
+    "tls":{
+       "disabled":true,
+       "min_version":"TLS12",
+       "max_version":"TLS12"
+    },
+    "extra_config":{
+       "router":{
+          "hide_version_header":true
+       },
+       "auth/jwk-client":{
+          "@comment":"Enable a JWK shared cache amongst all endpoints of 15 minutes",
+          "shared_cache_duration":900
+       },
+       "github_com/devopsfaith/krakend-cors":{
+          "allow-methods":[
+             "*"
+          ],
+          "allow_credentials":true,
+          "expose_headers":[
+             "*"
+          ],
+          "max-age":"24h"
+       },
+       "security/cors":{
+          "allow_credentials":true,
+          "allow_headers":[
+				"*"
+				],
+          "allow_methods":[
+             "*"
+          ],
+          "allow_origins":[
+             "*"
+          ],
+          "max_age":"12h"
+       },
+       "security/http":{
+          "allowed_hosts":[
+             
+          ],
+          "ssl_proxy_headers":{
+             
+          },
+          "browser_xss_filter":true,
+          "content_type_nosniff":true,
+          "ssl_redirect":false,
+          "sts_seconds":"31536000",
+          "sts_include_subdomains":true,
+          "frame_deny":true,
+          "custom_frame_options_value":"SAMEORIGIN"
+       }
+    },
+  "endpoints": [
+    {
+      "endpoint": "/api/v1/users",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/users",
+          "host": ["http://auth-service:8081"],
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/users/login",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/users/login",
+          "host": ["http://auth-service:8081"],
+          "method": "POST"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/users/login-admin",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/users/login-admin",
+          "host": ["http://auth-service:8081"],
+          "method": "POST"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/users/{userId}/resend-verification-email",
+      "method": "PUT",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/users/{userId}/resend-verification-email",
+          "host": ["http://auth-service:8081"],
+          "method": "PUT"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/users/update-attributes",
+      "method": "PUT",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/users/update-attributes",
+          "host": ["http://auth-service:8081"],
+          "method": "PUT"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/users/find-by-email",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/users/find-by-email",
+          "host": ["http://auth-service:8081"],
+          "method": "POST"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/users/delete",
+      "method": "DELETE",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/users/delete",
+          "host": ["http://auth-service:8081"],
+          "method": "DELETE"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/users/code-email",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/users/code-email",
+          "host": ["http://auth-service:8081"],
+          "method": "POST"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/users/verify-code",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/users/verify-code",
+          "host": ["http://auth-service:8081"],
+          "method": "POST"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/users/update-password",
+      "method": "PUT",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/users/update-password",
+          "host": ["http://auth-service:8081"],
+          "method": "PUT"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/users/update-old-password",
+      "method": "PUT",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/users/update-old-password",
+          "host": ["http://auth-service:8081"],
+          "method": "PUT"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/users/logout",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/users/logout",
+          "host": ["http://auth-service:8081"],
+          "method": "POST"
+        }
+      ]
+    },
+	 {
+      "endpoint": "/api/v1/notifs/send/{userId}",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/notifs/send/{userId}",
+          "host": ["http://notif-service:8083"],
+          "method": "POST"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/notifs/preferences/{userId}",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/notifs/preferences/{userId}",
+          "host": ["http://notif-service:8083"],
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/notifs/preferences/{userId}",
+      "method": "PUT",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/notifs/preferences/{userId}",
+          "host": ["http://notif-service:8083"],
+          "method": "PUT"
+        }
+      ]
+    },
+	{
+      "endpoint": "/api/v1/payments/create-customer",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/payments/create-customer",
+          "host": ["http://payment-service:8085"],
+          "method": "POST"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/payments/get-or-create-customer",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/payments/get-or-create-customer",
+          "host": ["http://payment-service:8085"],
+          "method": "POST"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/payments/create-payment-intent",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/payments/create-payment-intent",
+          "host": ["http://payment-service:8085"],
+          "method": "POST"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/payments/stripe-events",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/payments/stripe-events",
+          "host": ["http://payment-service:8085"],
+          "method": "POST"
+        }
+      ]
+    },
+	  {
+      "endpoint": "/api/v1/admin/blockchain/transactions",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/admin/blockchain/transactions",
+          "host": ["http://product-service:8082"],
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/products",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/products",
+          "host": ["http://product-service:8082"],
+          "method": "GET"
+        }
+      ]
+    },
+	 {
+      "endpoint": "/api/v1/cart/add",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/cart/add",
+          "host": ["http://product-service:8082"],
+          "method": "POST"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/cart/{userId}",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/cart/{userId}",
+          "host": ["http://product-service:8082"],
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/cart/{userId}/{productId}",
+      "method": "DELETE",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/cart/{userId}/{productId}",
+          "host": ["http://product-service:8082"],
+          "method": "DELETE"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/cart/increase",
+      "method": "PUT",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/cart/increase",
+          "host": ["http://product-service:8082"],
+          "method": "PUT"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/cart/decrease",
+      "method": "PUT",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/cart/decrease",
+          "host": ["http://product-service:8082"],
+          "method": "PUT"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/cart/clear/{userId}",
+      "method": "DELETE",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/cart/clear/{userId}",
+          "host": ["http://product-service:8082"],
+          "method": "DELETE"
+        }
+      ]
+    },
+	 {
+      "endpoint": "/api/v1/categories",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/categories",
+          "host": ["http://product-service:8082"],
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/categories/{id}",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/categories/{id}",
+          "host": ["http://product-service:8082"],
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/categories",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/categories",
+          "host": ["http://product-service:8082"],
+          "method": "POST"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/categories/{id}",
+      "method": "PUT",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/categories/{id}",
+          "host": ["http://product-service:8082"],
+          "method": "PUT"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/categories/{id}",
+      "method": "DELETE",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/categories/{id}",
+          "host": ["http://product-service:8082"],
+          "method": "DELETE"
+        }
+      ]
+    },
+	{
+  "endpoint": "/internal/orders/{orderId}/payment-confirmed",
+  "method": "POST",
+  "backend": [
+    {
+      "url_pattern": "/internal/orders/{orderId}/payment-confirmed",
+      "host": ["http://product-service:8082"],
+      "method": "POST",
+      "backend_querystring": {
+        "txId": "{txId}"
+      }
+    }
+  ]
+}
+,
+{
+      "endpoint": "/api/v1/orders",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/orders",
+          "method": "POST",
+          "host": ["http://product-service:8082"],
+          "extra_config": {}
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/orders",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/orders",
+          "method": "GET",
+          "host": ["http://product-service:8082"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/orders/{id}/fulfill",
+      "method": "PATCH",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/orders/{id}/fulfill",
+          "method": "PATCH",
+          "host": ["http://product-service:8082"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/orders/{id}",
+      "method": "DELETE",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/orders/{id}",
+          "method": "DELETE",
+          "host": ["http://product-service:8082"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/orders/{orderId}/confirm-payment",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/orders/{orderId}/confirm-payment",
+          "method": "POST",
+          "host": ["http://product-service:8082"]
+        }
+      ]
+    },
+{
+  "endpoint": "/api/v1/orders/{orderId}/ship",
+  "method": "POST",
+  "backend": [
+    {
+      "url_pattern": "/api/v1/orders/{orderId}/ship",
+      "method": "POST",
+      "host": ["http://product-service:8082"]
+    }
+  ]
+},
+{
+  "endpoint": "/api/v1/orders/{orderId}/confirm-delivery",
+  "method": "POST",
+  "backend": [
+    {
+      "url_pattern": "/api/v1/orders/{orderId}/confirm-delivery",
+      "method": "POST",
+      "host": ["http://product-service:8082"]
+    }
+  ]
+},
+    {
+      "endpoint": "/api/v1/orders/blockchain/all",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/orders/blockchain/all",
+          "method": "GET",
+          "host": ["http://product-service:8082"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/orders/blockchain/current-states",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/orders/blockchain/current-states",
+          "method": "GET",
+          "host": ["http://product-service:8082"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/orders/blockchain/all-details",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/orders/blockchain/all-details",
+          "method": "GET",
+          "host": ["http://product-service:8082"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/orders/by-blockchain-id/{blockchainOrderId}",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/orders/by-blockchain-id/{blockchainOrderId}",
+          "method": "GET",
+          "host": ["http://product-service:8082"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/orders/{orderId}/dispute",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/orders/{orderId}/dispute",
+          "method": "POST",
+          "host": ["http://product-service:8082"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/orders/{orderId}/resolve-dispute",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/orders/{orderId}/resolve-dispute",
+          "method": "POST",
+          "host": ["http://product-service:8082"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/orders/email-preview/{mongoOrderId}",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/orders/email-preview/{mongoOrderId}",
+          "method": "GET",
+          "host": ["http://product-service:8082"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/orders/email-ship-preview/{mongoOrderId}",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/orders/email-ship-preview/{mongoOrderId}",
+          "method": "GET",
+          "host": ["http://product-service:8082"]
+        }
+      ]
+    },
+	 {
+      "endpoint": "/api/v1/transactions",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/transactions",
+          "method": "POST",
+          "host": ["http://product-service:8082"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/transactions/by-user",
+      "method": "GET",
+      "query_strings": ["email"],
+      "backend": [
+        {
+          "url_pattern": "/api/v1/transactions/by-user",
+          "method": "GET",
+          "host": ["http://product-service:8082"]
+        }
+      ]
+    },
+	 {
+      "endpoint": "/api/v1/contact",
+      "method": "POST",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/contact",
+          "method": "POST",
+          "host": ["http://support-service:8084"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/contact",
+      "method": "GET",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/contact",
+          "method": "GET",
+          "host": ["http://support-service:8084"]
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/contact/{id}",
+      "method": "DELETE",
+      "backend": [
+        {
+          "url_pattern": "/api/v1/contact/{id}",
+          "method": "DELETE",
+          "host": ["http://support-service:8084"]
+        }
+      ]
+    }
+
+  ]
+}
